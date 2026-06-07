@@ -34,8 +34,13 @@ def get_model(model: str | None = None, **kwargs):
     """Return a chat model behind LangChain's universal interface, with a default
     per-call timeout + bounded retries (callers can override via kwargs).
 
+    Temperature defaults to 0: this is an extraction/resolution/grading system, not
+    a creative one — determinism makes extraction reproducible and the eval judge a
+    stable gate (a non-deterministic judge measures its own variance, not the system).
+
     Callers never know or care which vendor is underneath.
     """
     kwargs.setdefault("timeout", _TIMEOUT_S)
     kwargs.setdefault("max_retries", _MAX_RETRIES)
+    kwargs.setdefault("temperature", 0)
     return init_chat_model(model or _DEFAULT, **kwargs)

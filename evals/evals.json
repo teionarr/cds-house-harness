@@ -1,18 +1,34 @@
 {
-  "suite": "house-harness gold (HelixPay) \u2014 VERIFIED against the real corpus 2026-06-07",
-  "_note": "Answers verified by reading data/ (overview, org-chart, all-hands 04-15, weekly-review 04-21, board-update 04-22, cosmos debrief, interviews). Headline metric: uplift = with_harness - without_harness. without_harness = baseline agent over the RAW corpus (whole-corpus, the 'search box'); with_harness = answering from the resolved ontology slice (ontology-first). The delta isolates the value of the structured layer, not of one extra document. See `baseline_spec` for the fair-baseline rule and the `uplift-canary` diagnostic: if delta <= 0, check the canary FIRST \u2014 if it doesn't split (baseline fail, harness pass), the rig is mis-wired, not the harness.",
+  "suite": "house-harness gold (HelixPay) — VERIFIED against the real corpus 2026-06-07",
+  "_note": "Answers verified by reading data/ (overview, org-chart, all-hands 04-15, weekly-review 04-21, board-update 04-22, cosmos debrief, interviews). Headline metric: uplift = with_harness - without_harness. without_harness = baseline agent over the RAW corpus (whole-corpus, the 'search box'); with_harness = answering from the resolved ontology slice (ontology-first). The delta isolates the value of the structured layer, not of one extra document. See `baseline_spec` for the fair-baseline rule and the `uplift-canary` diagnostic: if delta <= 0, check the canary FIRST — if it doesn't split (baseline fail, harness pass), the rig is mis-wired, not the harness.",
   "evals": [
     {
       "id": "confluence-launch",
       "class": "staleness/contradiction",
       "prompt": "When does Project Confluence launch?",
-      "expected_output": "End of Q3 \u2014 Daniel Tan: 'I'd commit to September 30.' The end-of-June date from the Apr-15 all-hands ('Q3 is not on the table') was re-baselined to Q3 on Apr 21 (weekly review) and Apr 22 (board update). Realistic GA late Aug\u2013mid Sep.",
+      "expected_output": "End of Q3 — Daniel Tan: 'I'd commit to September 30.' The end-of-June date from the Apr-15 all-hands ('Q3 is not on the table') was re-baselined to Q3 on Apr 21 (weekly review) and Apr 22 (board update). Realistic GA late Aug–mid Sep.",
       "assertions": [
         "gives end of Q3 / ~Sep 30 as current",
         "identifies June as the superseded all-hands (public) line",
         "cites the weekly-review or board update as the fresher source",
         "attaches dates (Apr 15 vs Apr 21/22)"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "q3",
+            "september",
+            "sep 30",
+            "sep30",
+            "9/30",
+            "sept",
+            "09-30"
+          ],
+          [
+            "june"
+          ]
+        ]
+      }
     },
     {
       "id": "nps-segmented",
@@ -24,7 +40,17 @@
         "attaches scope to each number",
         "explains 62 was the all-hands headline (SEA-enterprise)",
         "does NOT present 62 vs 47 as a contradiction"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "47"
+          ],
+          [
+            "62"
+          ]
+        ]
+      }
     },
     {
       "id": "maria-resolution",
@@ -36,7 +62,17 @@
         "gives their distinct roles/orgs",
         "names Maria Silva for Brazil sales",
         "does not conflate them"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "silva"
+          ],
+          [
+            "santos"
+          ]
+        ]
+      }
     },
     {
       "id": "pos-antialias",
@@ -47,18 +83,44 @@
         "states they are NOT the same",
         "describes each distinctly",
         "cites overview"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "kiosk",
+            "self-service",
+            "self-serve"
+          ],
+          [
+            "terminal",
+            "card reader",
+            "card-reader",
+            "card-reader terminal"
+          ]
+        ]
+      }
     },
     {
       "id": "reports-to-sofia",
       "class": "hierarchy",
       "prompt": "Who reports to Sofia Almeida?",
-      "expected_output": "Sofia Almeida (CRO/Head of Sales) owns Sales: SEA under Aisha Yusof and Brasil under Maria Silva (dotted-line Maria Silva \u2194 Sofia). Note the org chart (exported Apr 15) is stale \u2014 it predates the Apr-18 SDR reorg and omits 12 contractors.",
+      "expected_output": "Sofia Almeida (CRO/Head of Sales) owns Sales: SEA under Aisha Yusof and Brasil under Maria Silva (dotted-line Maria Silva ↔ Sofia). Note the org chart (exported Apr 15) is stale — it predates the Apr-18 SDR reorg and omits 12 contractors.",
       "assertions": [
         "identifies the sales org under Sofia (SEA via Aisha Yusof, Brasil via Maria Silva)",
         "includes the dotted-line relationship",
         "flags the org chart as stale (Apr-18 reorg not reflected)"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "aisha"
+          ],
+          [
+            "maria silva",
+            "silva"
+          ]
+        ]
+      }
     },
     {
       "id": "q1-revenue",
@@ -69,7 +131,20 @@
         "gives SGD 14.2M vs 16M target",
         "cites the financial source (q1 results / board update)",
         "does not invent an MRR figure"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "14.2"
+          ],
+          [
+            "16"
+          ]
+        ],
+        "excludes": [
+          "mrr"
+        ]
+      }
     },
     {
       "id": "brazil-pipeline",
@@ -81,30 +156,62 @@
         "flags the 78% as SEA-weighted",
         "prefers the weekly-review over the all-hands claim",
         "cites sources"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "pipedrive"
+          ]
+        ]
+      }
     },
     {
       "id": "cosmos-hotels",
       "class": "business",
-      "prompt": "Prep me for the Cosmos Hotels account \u2014 why did we lose them?",
-      "expected_output": "Churned to a competitor (off-boarding by May 31). Reason: multi-property consolidated reporting \u2014 Cosmos has 47 properties needing group-level reporting; HelixPay reports per-merchant. Flagged since May 2025, deprioritized behind Confluence. ARR loss SGD 120K (renewal would have been 165K).",
+      "prompt": "Prep me for the Cosmos Hotels account — why did we lose them?",
+      "expected_output": "Churned to a competitor (off-boarding by May 31). Reason: multi-property consolidated reporting — Cosmos has 47 properties needing group-level reporting; HelixPay reports per-merchant. Flagged since May 2025, deprioritized behind Confluence. ARR loss SGD 120K (renewal would have been 165K).",
       "assertions": [
         "names the multi-property reporting gap as the reason",
         "notes they moved to a competitor",
         "cites the cosmos debrief",
         "optionally gives the ARR figure"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "multi-property",
+            "consolidated",
+            "group-level",
+            "multi property"
+          ],
+          [
+            "competitor",
+            "churn",
+            "lost",
+            "left",
+            "off-board",
+            "offboard"
+          ]
+        ]
+      }
     },
     {
       "id": "discount-authority",
       "class": "hierarchy/ownership",
       "prompt": "Who can approve a pricing discount on an enterprise deal?",
-      "expected_output": "Sofia Almeida (CRO) \u2014 she approved the discount on the Lazada SG midmarket deal (per Tom Holloway). No separate pricing-owner role is documented.",
+      "expected_output": "Sofia Almeida (CRO) — she approved the discount on the Lazada SG midmarket deal (per Tom Holloway). No separate pricing-owner role is documented.",
       "assertions": [
         "names Sofia Almeida / CRO as the discount approver",
         "cites the Lazada example (Tom Holloway interview)",
         "notes no separate pricing role is documented if relevant"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "sofia"
+          ]
+        ]
+      }
     },
     {
       "id": "recon-bug",
@@ -116,7 +223,18 @@
         "synthesizes across multiple interviews (Beatriz/Hannah/Ahmad)",
         "gives the ~280-merchant / since-Q4-2025 detail",
         "cites sources"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "reconciliation",
+            "reconcil"
+          ],
+          [
+            "280"
+          ]
+        ]
+      }
     },
     {
       "id": "uplift-canary",
@@ -125,37 +243,70 @@
       "baseline_expected": "fail",
       "harness_expected": "pass",
       "prompt": "What is HelixPay's current revenue?",
-      "expected_output": "Q1 2026: SGD 14.2M (the latest closed quarter). The Q4 2025 dashboard figure of 15.4M is the PRIOR quarter and superseded \u2014 revenue fell QoQ. Cite the Q1 results; mark Q4 stale.",
+      "expected_output": "Q1 2026: SGD 14.2M (the latest closed quarter). The Q4 2025 dashboard figure of 15.4M is the PRIOR quarter and superseded — revenue fell QoQ. Cite the Q1 results; mark Q4 stale.",
       "assertions": [
         "returns Q1 14.2M as current",
         "identifies the Q4 15.4M dashboard as the superseded/prior value",
         "does not return 15.4M as current"
       ],
-      "_why_canary": "Raw text has a prominent 'auto-refreshed daily' Q4 dashboard reading 15.4M and a Q1 filing reading 14.2M. A baseline over raw text plausibly returns the stale 15.4M or hedges; the harness resolves by recency -> 14.2M current, Q4 superseded. If with_harness and without_harness give the SAME answer here, the arms share a context source or the harness isn't on the path -> fix the RIG, not the harness, before trusting delta.pass_rate."
+      "_why_canary": "Raw text has a prominent 'auto-refreshed daily' Q4 dashboard reading 15.4M and a Q1 filing reading 14.2M. A baseline over raw text plausibly returns the stale 15.4M or hedges; the harness resolves by recency -> 14.2M current, Q4 superseded. If with_harness and without_harness give the SAME answer here, the arms share a context source or the harness isn't on the path -> fix the RIG, not the harness, before trusting delta.pass_rate.",
+      "checks": {
+        "includes": [
+          [
+            "14.2"
+          ],
+          [
+            "q4",
+            "superseded",
+            "prior",
+            "previous",
+            "stale",
+            "15.4"
+          ]
+        ]
+      }
     },
     {
       "id": "eu-churn-gap",
       "class": "abstention / coverage gap",
       "prompt": "What's churn for the EU segment?",
-      "expected_output": "Abstains \u2014 the corpus covers SEA and Brasil only; there is no EU segment. Emits a coverage gap and routes to the metric owner.",
+      "expected_output": "Abstains — the corpus covers SEA and Brasil only; there is no EU segment. Emits a coverage gap and routes to the metric owner.",
       "assertions": [
         "status == abstained",
         "coverage_gaps is non-empty",
         "escalate_to names a metric owner",
         "does not fabricate an EU churn figure"
-      ]
+      ],
+      "checks": {
+        "abstain": true,
+        "escalate": true
+      }
     },
     {
       "id": "non-person-identity",
       "class": "entity hygiene (negative / anti-alias)",
       "prompt": "Who is the engineer 'Nikita@local', and what have they shipped?",
-      "expected_output": "No such person \u2014 'Nikita@local' and 'noise' are non-person GitHub/commit identities, not employees. Does not mint them as entities or invent contributions.",
+      "expected_output": "No such person — 'Nikita@local' and 'noise' are non-person GitHub/commit identities, not employees. Does not mint them as entities or invent contributions.",
       "assertions": [
         "does not create a person entity for Nikita@local or noise",
         "identifies it as a non-person/automation identity",
         "no fabricated role or contributions"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "not a person",
+            "non-person",
+            "not an employee",
+            "no such",
+            "automation",
+            "commit identity",
+            "bot",
+            "not an engineer"
+          ]
+        ]
+      }
     }
   ],
-  "baseline_spec": "without_harness MUST be a FAIR baseline: same model, same temperature, same full raw corpus in context (whole-corpus over data/), same cite-or-abstain prompt \u2014 the ONLY difference from with_harness is the ontology/harness layer. A weaker baseline (smaller context, no instructions, fewer docs) invalidates the uplift by flattering us. with_harness answers via synthesis.respond.answer (ontology-first, answer_path=ontology)."
+  "baseline_spec": "without_harness MUST be a FAIR baseline: same model, same temperature, same full raw corpus in context (whole-corpus over data/), same cite-or-abstain prompt — the ONLY difference from with_harness is the ontology/harness layer. A weaker baseline (smaller context, no instructions, fewer docs) invalidates the uplift by flattering us. with_harness answers via synthesis.respond.answer (ontology-first, answer_path=ontology)."
 }

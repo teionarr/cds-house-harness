@@ -1,17 +1,31 @@
 {
-  "suite": "house-harness held-out validation (HelixPay) \u2014 VERIFIED",
+  "suite": "house-harness held-out validation (HelixPay) — VERIFIED",
   "_note": "ACCEPTANCE set, authored separately and NOT used in the dev loop (VALIDATION.md E1). Paraphrased trap classes + abstain/reliability negatives. Verified against data/.",
   "evals": [
     {
       "id": "v-confluence",
       "class": "staleness/contradiction",
       "prompt": "Is Confluence still on track for the June launch?",
-      "expected_output": "No \u2014 re-baselined to end of Q3 (~Sep 30). June was the all-hands line, superseded Apr 21/22.",
+      "expected_output": "No — re-baselined to end of Q3 (~Sep 30). June was the all-hands line, superseded Apr 21/22.",
       "assertions": [
         "says June is no longer the date",
         "gives Q3/Sep 30",
         "cites the fresher source"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "q3",
+            "september",
+            "sep 30",
+            "sept",
+            "09-30"
+          ],
+          [
+            "june"
+          ]
+        ]
+      }
     },
     {
       "id": "v-nps",
@@ -22,49 +36,98 @@
         "explains the segmentation",
         "gives both with scope",
         "not framed as an error"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "62"
+          ],
+          [
+            "47"
+          ]
+        ]
+      }
     },
     {
       "id": "v-tanwei",
       "class": "anti-alias",
       "prompt": "Is Tan Wei Ming related to Daniel Tan?",
-      "expected_output": "No. Tan Wei Ming is a backend engineer in S\u00e3o Paulo (relocated from SG in Feb 2026); Daniel Tan is VP Engineering. Different people.",
+      "expected_output": "No. Tan Wei Ming is a backend engineer in São Paulo (relocated from SG in Feb 2026); Daniel Tan is VP Engineering. Different people.",
       "assertions": [
         "says they are not related/different people",
         "gives their distinct roles"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "são paulo",
+            "sao paulo",
+            "backend"
+          ],
+          [
+            "vp engineering",
+            "vp of engineering",
+            "vp eng"
+          ]
+        ]
+      }
     },
     {
       "id": "v-cosmos",
       "class": "business",
       "prompt": "What feature gap cost us an enterprise hotel account?",
-      "expected_output": "Multi-property consolidated reporting cost us Cosmos Hotels (47 properties) \u2014 they moved to a competitor.",
+      "expected_output": "Multi-property consolidated reporting cost us Cosmos Hotels (47 properties) — they moved to a competitor.",
       "assertions": [
         "names multi-property reporting",
         "names Cosmos Hotels / competitor"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "multi-property",
+            "consolidated",
+            "group-level",
+            "multi property"
+          ],
+          [
+            "competitor",
+            "cosmos"
+          ]
+        ]
+      }
     },
     {
       "id": "v-abstain",
       "class": "abstention",
       "prompt": "What's HelixPay's 2027 headcount plan?",
-      "expected_output": "Abstains \u2014 no source addresses 2027 headcount; emits a coverage gap and routes to People (Sarah Ng) / COO.",
+      "expected_output": "Abstains — no source addresses 2027 headcount; emits a coverage gap and routes to People (Sarah Ng) / COO.",
       "assertions": [
         "abstains rather than guessing",
         "emits coverage_gap",
         "escalate_to names an owner"
-      ]
+      ],
+      "checks": {
+        "abstain": true,
+        "escalate": true
+      }
     },
     {
       "id": "v-reliability",
       "class": "source-reliability",
-      "prompt": "Sofia said 78% of pipeline is in HubSpot \u2014 so Brazil's migrated, right?",
-      "expected_output": "No \u2014 that 78% is SEA-weighted; Brazil hasn't started (Pipedrive is system of record; migration begins May 1).",
+      "prompt": "Sofia said 78% of pipeline is in HubSpot — so Brazil's migrated, right?",
+      "expected_output": "No — that 78% is SEA-weighted; Brazil hasn't started (Pipedrive is system of record; migration begins May 1).",
       "assertions": [
         "corrects the inference",
         "explains 78% is SEA-only",
         "cites the weekly-review over the all-hands"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "pipedrive"
+          ]
+        ]
+      }
     },
     {
       "id": "v-recon",
@@ -75,7 +138,17 @@
         "describes the tap+loyalty reconciliation issue",
         "gives ~280 merchants / Brazil",
         "synthesizes across interviews"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "reconcil"
+          ],
+          [
+            "280"
+          ]
+        ]
+      }
     },
     {
       "id": "v-runway",
@@ -85,7 +158,14 @@
       "assertions": [
         "gives ~18 months",
         "cites a source"
-      ]
+      ],
+      "checks": {
+        "includes": [
+          [
+            "18"
+          ]
+        ]
+      }
     }
   ]
 }

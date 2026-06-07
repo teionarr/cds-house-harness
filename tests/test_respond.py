@@ -105,16 +105,19 @@ def test_entity_question_fuzzy_subject_keeps_distinct(patch_llm):
     assert any("Maria Santos" in t for t in subjects)
 
 
-def test_in_namespace_gap_abstains_and_flags_coverage(patch_llm):
+def test_in_namespace_gap_falls_back_then_abstains(patch_llm):
+    # ontology has no churn -> safety-net fallback; the (mocked) corpus can't cover it
+    # either (grounded=False) -> honest abstain + coverage gap, flagged as fallback.
     patch_llm(
         respond.QResolution(
             subject="helixpay", attribute="churn.arr_total", scope="eu", intent="metric"
-        )
+        ),
+        fallback=respond._FallbackAnswer(answer="", claims=[], grounded=False),
     )
     env = respond.answer("What's churn for the EU segment?", _HARNESS, _store())
     assert env.status is Status.abstained
     assert env.coverage_gaps  # honest gap, not a guess
-    assert env.answer_path is AnswerPath.ontology
+    assert env.answer_path is AnswerPath.fallback
 
 
 def test_out_of_namespace_routes_to_fallback(patch_llm):

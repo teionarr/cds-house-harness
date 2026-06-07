@@ -1,0 +1,606 @@
+{
+  "n": 13,
+  "with_harness": {
+    "pass_rate": 0.154,
+    "passed": 2
+  },
+  "without_harness": {
+    "pass_rate": 0.538,
+    "passed": 7
+  },
+  "delta": {
+    "pass_rate": -0.384
+  },
+  "uplift_canary_split": false,
+  "cases": [
+    {
+      "id": "confluence-launch",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "gives end of Q3 / ~Sep 30 as current",
+            "passed": true
+          },
+          {
+            "assertion": "identifies June as the superseded all-hands (public) line",
+            "passed": true
+          },
+          {
+            "assertion": "cites the weekly-review or board update as the fresher source",
+            "passed": true
+          },
+          {
+            "assertion": "attaches dates (Apr 15 vs Apr 21/22)",
+            "passed": false
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "gives end of Q3 / ~Sep 30 as current",
+            "passed": true
+          },
+          {
+            "assertion": "identifies June as the superseded all-hands (public) line",
+            "passed": true
+          },
+          {
+            "assertion": "cites the weekly-review or board update as the fresher source",
+            "passed": true
+          },
+          {
+            "assertion": "attaches dates (Apr 15 vs Apr 21/22)",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "nps-segmented",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "returns aggregate 47 and SEA-enterprise 62",
+            "passed": true
+          },
+          {
+            "assertion": "attaches scope to each number",
+            "passed": true
+          },
+          {
+            "assertion": "explains 62 was the all-hands headline (SEA-enterprise)",
+            "passed": false
+          },
+          {
+            "assertion": "does NOT present 62 vs 47 as a contradiction",
+            "passed": true
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "returns aggregate 47 and SEA-enterprise 62",
+            "passed": true
+          },
+          {
+            "assertion": "attaches scope to each number",
+            "passed": true
+          },
+          {
+            "assertion": "explains 62 was the all-hands headline (SEA-enterprise)",
+            "passed": true
+          },
+          {
+            "assertion": "does NOT present 62 vs 47 as a contradiction",
+            "passed": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "maria-resolution",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "distinguishes Maria Silva from Maria Santos",
+            "passed": true
+          },
+          {
+            "assertion": "gives their distinct roles/orgs",
+            "passed": true
+          },
+          {
+            "assertion": "names Maria Silva for Brazil sales",
+            "passed": true
+          },
+          {
+            "assertion": "does not conflate them",
+            "passed": true
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "distinguishes Maria Silva from Maria Santos",
+            "passed": true
+          },
+          {
+            "assertion": "gives their distinct roles/orgs",
+            "passed": true
+          },
+          {
+            "assertion": "names Maria Silva for Brazil sales",
+            "passed": true
+          },
+          {
+            "assertion": "does not conflate them",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "pos-antialias",
+      "answer_path": "fallback",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "states they are NOT the same",
+            "passed": true
+          },
+          {
+            "assertion": "describes each distinctly",
+            "passed": true
+          },
+          {
+            "assertion": "cites overview",
+            "passed": false
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "states they are NOT the same",
+            "passed": true
+          },
+          {
+            "assertion": "describes each distinctly",
+            "passed": true
+          },
+          {
+            "assertion": "cites overview",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "reports-to-sofia",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "identifies the sales org under Sofia (SEA via Aisha Yusof, Brasil via Maria Silva)",
+            "passed": true
+          },
+          {
+            "assertion": "includes the dotted-line relationship",
+            "passed": true
+          },
+          {
+            "assertion": "flags the org chart as stale (Apr-18 reorg not reflected)",
+            "passed": false
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "identifies the sales org under Sofia (SEA via Aisha Yusof, Brasil via Maria Silva)",
+            "passed": true
+          },
+          {
+            "assertion": "includes the dotted-line relationship",
+            "passed": true
+          },
+          {
+            "assertion": "flags the org chart as stale (Apr-18 reorg not reflected)",
+            "passed": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "q1-revenue",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "gives SGD 14.2M vs 16M target",
+            "passed": false
+          },
+          {
+            "assertion": "cites the financial source (q1 results / board update)",
+            "passed": true
+          },
+          {
+            "assertion": "does not invent an MRR figure",
+            "passed": true
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "gives SGD 14.2M vs 16M target",
+            "passed": true
+          },
+          {
+            "assertion": "cites the financial source (q1 results / board update)",
+            "passed": true
+          },
+          {
+            "assertion": "does not invent an MRR figure",
+            "passed": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "brazil-pipeline",
+      "answer_path": "fallback",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "says Brazil is not on HubSpot (Pipedrive is system of record)",
+            "passed": true
+          },
+          {
+            "assertion": "flags the 78% as SEA-weighted",
+            "passed": true
+          },
+          {
+            "assertion": "prefers the weekly-review over the all-hands claim",
+            "passed": true
+          },
+          {
+            "assertion": "cites sources",
+            "passed": false
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "says Brazil is not on HubSpot (Pipedrive is system of record)",
+            "passed": true
+          },
+          {
+            "assertion": "flags the 78% as SEA-weighted",
+            "passed": true
+          },
+          {
+            "assertion": "prefers the weekly-review over the all-hands claim",
+            "passed": true
+          },
+          {
+            "assertion": "cites sources",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "cosmos-hotels",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "names the multi-property reporting gap as the reason",
+            "passed": true
+          },
+          {
+            "assertion": "notes they moved to a competitor",
+            "passed": true
+          },
+          {
+            "assertion": "cites the cosmos debrief",
+            "passed": true
+          },
+          {
+            "assertion": "optionally gives the ARR figure",
+            "passed": false
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "names the multi-property reporting gap as the reason",
+            "passed": true
+          },
+          {
+            "assertion": "notes they moved to a competitor",
+            "passed": true
+          },
+          {
+            "assertion": "cites the cosmos debrief",
+            "passed": true
+          },
+          {
+            "assertion": "optionally gives the ARR figure",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "discount-authority",
+      "answer_path": "fallback",
+      "status": "abstained",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "names Sofia Almeida / CRO as the discount approver",
+            "passed": false
+          },
+          {
+            "assertion": "cites the Lazada example (Tom Holloway interview)",
+            "passed": false
+          },
+          {
+            "assertion": "notes no separate pricing role is documented if relevant",
+            "passed": true
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "names Sofia Almeida / CRO as the discount approver",
+            "passed": false
+          },
+          {
+            "assertion": "cites the Lazada example (Tom Holloway interview)",
+            "passed": false
+          },
+          {
+            "assertion": "notes no separate pricing role is documented if relevant",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "recon-bug",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "links low Tap attach to the reconciliation bug",
+            "passed": true
+          },
+          {
+            "assertion": "synthesizes across multiple interviews (Beatriz/Hannah/Ahmad)",
+            "passed": false
+          },
+          {
+            "assertion": "gives the ~280-merchant / since-Q4-2025 detail",
+            "passed": false
+          },
+          {
+            "assertion": "cites sources",
+            "passed": true
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "links low Tap attach to the reconciliation bug",
+            "passed": true
+          },
+          {
+            "assertion": "synthesizes across multiple interviews (Beatriz/Hannah/Ahmad)",
+            "passed": false
+          },
+          {
+            "assertion": "gives the ~280-merchant / since-Q4-2025 detail",
+            "passed": false
+          },
+          {
+            "assertion": "cites sources",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "uplift-canary",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "returns Q1 14.2M as current",
+            "passed": true
+          },
+          {
+            "assertion": "identifies the Q4 15.4M dashboard as the superseded/prior value",
+            "passed": false
+          },
+          {
+            "assertion": "does not return 15.4M as current",
+            "passed": true
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "returns Q1 14.2M as current",
+            "passed": true
+          },
+          {
+            "assertion": "identifies the Q4 15.4M dashboard as the superseded/prior value",
+            "passed": true
+          },
+          {
+            "assertion": "does not return 15.4M as current",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "eu-churn-gap",
+      "answer_path": "fallback",
+      "status": "abstained",
+      "with_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "status == abstained",
+            "passed": true
+          },
+          {
+            "assertion": "coverage_gaps is non-empty",
+            "passed": true
+          },
+          {
+            "assertion": "escalate_to names a metric owner",
+            "passed": true
+          },
+          {
+            "assertion": "does not fabricate an EU churn figure",
+            "passed": true
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "status == abstained",
+            "passed": true
+          },
+          {
+            "assertion": "coverage_gaps is non-empty",
+            "passed": true
+          },
+          {
+            "assertion": "escalate_to names a metric owner",
+            "passed": false
+          },
+          {
+            "assertion": "does not fabricate an EU churn figure",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "non-person-identity",
+      "answer_path": "fallback",
+      "status": "abstained",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "does not create a person entity for Nikita@local or noise",
+            "passed": true
+          },
+          {
+            "assertion": "identifies it as a non-person/automation identity",
+            "passed": false
+          },
+          {
+            "assertion": "no fabricated role or contributions",
+            "passed": true
+          }
+        ]
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "assertions": [
+          {
+            "assertion": "does not create a person entity for Nikita@local or noise",
+            "passed": true
+          },
+          {
+            "assertion": "identifies it as a non-person/automation identity",
+            "passed": true
+          },
+          {
+            "assertion": "no fabricated role or contributions",
+            "passed": true
+          }
+        ]
+      }
+    }
+  ]
+}
