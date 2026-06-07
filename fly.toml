@@ -14,9 +14,16 @@ primary_region = "iad"
   HOUSE_HARNESS_MODEL = "anthropic:claude-sonnet-4-6"
   DATABASE_URL = "sqlite:////data/house_harness.db"   # on the mounted volume
 
+# The container's ENTRYPOINT is `uv run house-harness`; this appends the command.
+# Serve + ingest-on-boot, which ingests ONLY changed files (hash manifest) — a no-op
+# in the Phase-1 mock skeleton, the real corpus load once live.
+[processes]
+  app = "serve --ingest-on-boot data/"
+
 [[mounts]]
   source = "hh_data"
   destination = "/data"
+  processes = ["app"]
 
 [http_service]
   internal_port = 8080
@@ -24,6 +31,7 @@ primary_region = "iad"
   auto_stop_machines = true      # scale to zero; note cold-start in SOLUTION
   auto_start_machines = true
   min_machines_running = 0
+  processes = ["app"]
 
 [[http_service.checks]]
   path = "/health"               # unauthenticated probe
