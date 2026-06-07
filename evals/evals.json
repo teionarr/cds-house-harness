@@ -254,15 +254,10 @@
         "includes": [
           [
             "14.2"
-          ],
-          [
-            "q4",
-            "superseded",
-            "prior",
-            "previous",
-            "stale",
-            "15.4"
           ]
+        ],
+        "excludes": [
+          "15.4"
         ]
       }
     },

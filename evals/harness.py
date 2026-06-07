@@ -185,8 +185,16 @@ def run(suite_path: Path, subset: int | None, report: Path | None, gate: bool) -
         try:
             env = _with_harness(case["prompt"])
             with_grade = _grade_case(case, _render_envelope(env), env)
-            base = _without_harness(case["prompt"])
-            without_grade = _grade_case(case, base, None)
+            if env.answer_path is AnswerPath.fallback and env.status is Status.answered:
+                # The harness ran the IDENTICAL baseline method (raw_corpus_answer) and
+                # produced this exact text. Grade the baseline on that SAME generation —
+                # so per-call sampling noise can't fabricate a spurious win/loss, and the
+                # "never worse than baseline on a fallback case" guarantee is structural
+                # (it also saves the second model call). Ontology + abstention cases are
+                # graded against an independent baseline, where the uplift is real.
+                without_grade = _grade_case(case, env.answer, None)
+            else:
+                without_grade = _grade_case(case, _without_harness(case["prompt"]), None)
             path, status = env.answer_path.value, env.status.value
         except Exception as exc:  # noqa: BLE001 — isolation is the point
             errors += 1
