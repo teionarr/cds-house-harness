@@ -24,10 +24,18 @@ _DEFAULT = os.environ.get("HOUSE_HARNESS_MODEL", "anthropic:claude-sonnet-4-6")
 # Reminder flag: sensitive corpora require a ZDR/no-train provider agreement.
 REQUIRE_ZDR = os.environ.get("REQUIRE_ZDR", "true").lower() == "true"
 
+# Bound every model call: a hung response must never stall ingest/serving forever.
+# Tunable via env; the provider client retries transient errors up to MAX_RETRIES.
+_TIMEOUT_S = float(os.environ.get("HOUSE_HARNESS_LLM_TIMEOUT", "90"))
+_MAX_RETRIES = int(os.environ.get("HOUSE_HARNESS_LLM_RETRIES", "2"))
+
 
 def get_model(model: str | None = None, **kwargs):
-    """Return a chat model behind LangChain's universal interface.
+    """Return a chat model behind LangChain's universal interface, with a default
+    per-call timeout + bounded retries (callers can override via kwargs).
 
     Callers never know or care which vendor is underneath.
     """
+    kwargs.setdefault("timeout", _TIMEOUT_S)
+    kwargs.setdefault("max_retries", _MAX_RETRIES)
     return init_chat_model(model or _DEFAULT, **kwargs)

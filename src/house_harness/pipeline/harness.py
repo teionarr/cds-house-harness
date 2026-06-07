@@ -26,9 +26,10 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor
 
 import networkx as nx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from house_harness.config.structured import llm_json
 from house_harness.pipeline import aliases, attributes, ontology
@@ -52,6 +53,10 @@ logger = logging.getLogger(__name__)
 
 
 class RawAssertion(BaseModel):
+    # financial docs make the model emit numeric values/dates — coerce to str so a
+    # number never fails validation and triggers a wasted repair/retry loop.
+    model_config = ConfigDict(coerce_numbers_to_str=True)
+
     subject: str
     attribute: str  # a controlled-vocab key OR new_attribute:<slug>
     value: str
@@ -123,6 +128,14 @@ def _locate_span(text: str, quote: str) -> tuple[int, int]:
 
 def _tier(artifact_source_type: str | None) -> SourceTier:
     return ontology.RELIABILITY.get(artifact_source_type or "", SourceTier.interview)
+
+
+# Relations that are also stored as assertions (queryable hierarchy/authority).
+_RELATION_ASSERTION_KINDS = {
+    RelationKind.reports_to,
+    RelationKind.dotted_reports_to,
+    RelationKind.owns,
+}
 
 
 _EXTRACTION_PROMPT = """You are an extraction engine for a company-knowledge ontology. \
@@ -275,62 +288,110 @@ def _derive_targets(current: dict[str, Assertion]) -> list[Target]:
     return targets
 
 
-def extract_harness(company: str, artifacts: Iterable[Artifact]) -> HouseHarness:  # noqa: F821
+def _extract_one(art: Artifact) -> tuple[list[Assertion], list[GraphEdge], list[Guardrail]]:
+    """All model work for ONE document, touching no shared state (so it's safe to
+    run concurrently). Returns (assertions incl. hierarchy/ownership, edges,
+    guardrails). A failed doc yields empty lists — per-file isolation."""
+    source_type = art.metadata.get("source_type")
+    doc_as_of = art.metadata.get("as_of")
+    try:
+        result = llm_json(
+            _EXTRACTION_PROMPT.format(
+                vocab=_vocab_block(),
+                scopes=attributes.SCOPES,
+                source_type=source_type,
+                doc_as_of=doc_as_of,
+                text=art.text,
+            ),
+            DocExtraction,
+        )
+    except Exception as exc:  # noqa: BLE001 — per-file isolation
+        logger.warning("extraction failed for %s: %s", art.id, exc)
+        return [], [], []
+
+    tier = _tier(source_type)
+    assertions = [
+        a
+        for a in (
+            _map_raw_assertion(ra, art.id, art.text, tier, doc_as_of) for ra in result.assertions
+        )
+        if a is not None
+    ]
+    edges: list[GraphEdge] = []
+    for rr in result.relations:
+        try:
+            rel = RelationKind(rr.relation)
+        except ValueError:
+            continue
+        src, dst = _canonicalize(rr.src), _canonicalize(rr.dst)
+        edges.append(GraphEdge(src=src, dst=dst, relation=rel))
+        # Hierarchy/ownership edges are ALSO assertions, so hierarchy + authority
+        # questions answer from the ontology (assertion_ids + provenance), not just
+        # the graph view. (uses/depends_on/produces stay graph-only.)
+        if rel in _RELATION_ASSERTION_KINDS:
+            dstart, dend = _locate_span(art.text, dst)
+            assertions.append(
+                Assertion(
+                    id=ontology.assertion_id(src, rel.value, None, art.id),
+                    subject=src,
+                    attribute=rel.value,
+                    value=dst,
+                    as_of=doc_as_of,
+                    source=SourceSpan(artifact_id=art.id, start=dstart, end=dend),
+                    reliability=tier,
+                    confidence=Confidence.high
+                    if tier >= SourceTier.official
+                    else Confidence.medium,
+                )
+            )
+    guardrails = []
+    for rg in result.guardrails:
+        gstart, gend = _locate_span(art.text, rg.evidence)
+        guardrails.append(
+            Guardrail(
+                rule=rg.rule,
+                authority=rg.authority,
+                sources=[SourceSpan(artifact_id=art.id, start=gstart, end=gend)],
+            )
+        )
+    return assertions, edges, guardrails
+
+
+def extract_harness(
+    company: str, artifacts: Iterable[Artifact]
+) -> tuple[HouseHarness, dict[str, Assertion]]:
     """Distill the defining-artifact library from a corpus. One structured pass per
-    document -> assertions (namespace-conformant, alias-canonicalized, tiered,
-    span-located) + relations + guardrails; the ontology resolves staleness /
-    conflict / scope; charter and targets are distilled on top."""
+    document (run concurrently) -> assertions (namespace-conformant, alias-
+    canonicalized, tiered, span-located) + relations + guardrails; the ontology
+    resolves staleness / conflict / scope; charter and targets are distilled on top.
+
+    The per-document model calls run in a thread pool (I/O-bound); the ontology
+    mutation (`upsert`) is serialized after, since the store is not thread-safe.
+
+    Returns (harness, assertion_store). The store is the ontology of-record (incl.
+    superseded assertions, kept as history) that the query path reads."""
     artifacts = list(artifacts)
     store: dict[str, Assertion] = {}
     edges: list[GraphEdge] = []
     guardrails: list[Guardrail] = []
     seen_rules: set[str] = set()
 
-    for art in artifacts:
-        source_type = art.metadata.get("source_type")
-        doc_as_of = art.metadata.get("as_of")
-        try:
-            result = llm_json(
-                _EXTRACTION_PROMPT.format(
-                    vocab=_vocab_block(),
-                    scopes=attributes.SCOPES,
-                    source_type=source_type,
-                    doc_as_of=doc_as_of,
-                    text=art.text,
-                ),
-                DocExtraction,
-            )
-        except Exception as exc:  # noqa: BLE001 — per-file isolation
-            logger.warning("extraction failed for %s: %s", art.id, exc)
-            continue
-
-        tier = _tier(source_type)
-        for ra in result.assertions:
-            mapped = _map_raw_assertion(ra, art.id, art.text, tier, doc_as_of)
-            if mapped is not None:
-                ontology.upsert(store, mapped)
-        for rr in result.relations:
-            try:
-                rel = RelationKind(rr.relation)
-            except ValueError:
-                continue
-            edges.append(
-                GraphEdge(src=_canonicalize(rr.src), dst=_canonicalize(rr.dst), relation=rel)
-            )
-        for rg in result.guardrails:
-            if rg.rule not in seen_rules:
-                seen_rules.add(rg.rule)
-                gstart, gend = _locate_span(art.text, rg.evidence)
-                guardrails.append(
-                    Guardrail(
-                        rule=rg.rule,
-                        authority=rg.authority,
-                        sources=[SourceSpan(artifact_id=art.id, start=gstart, end=gend)],
-                    )
-                )
+    workers = min(8, max(1, len(artifacts)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for i, (doc_assertions, doc_edges, doc_guardrails) in enumerate(
+            pool.map(_extract_one, artifacts), start=1
+        ):
+            for a in doc_assertions:  # serialized mutation (store is not thread-safe)
+                ontology.upsert(store, a)
+            edges.extend(doc_edges)
+            for g in doc_guardrails:
+                if g.rule not in seen_rules:
+                    seen_rules.add(g.rule)
+                    guardrails.append(g)
+            logger.info("extracted %d/%d documents", i, len(artifacts))
 
     current, _dissent = ontology.resolve(store)
-    return HouseHarness(
+    harness = HouseHarness(
         company=company,
         charter=_distill_charter(artifacts),
         taxonomy=_build_graph(edges),
@@ -338,6 +399,7 @@ def extract_harness(company: str, artifacts: Iterable[Artifact]) -> HouseHarness
         guardrails=guardrails,
         playbooks=[],
     )
+    return harness, store
 
 
 def render_markdown(harness: HouseHarness) -> str:

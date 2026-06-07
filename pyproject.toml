@@ -69,6 +69,8 @@ select = ["E", "F", "I", "UP", "B", "S", "ASYNC"]
 "tests/**" = ["S101"]
 # harness.py holds the extraction LLM prompt — long instruction lines are content.
 "src/house_harness/pipeline/harness.py" = ["E501"]
+# Typer's API REQUIRES call-in-default (typer.Argument/Option) — B008 is a false positive here.
+"src/house_harness/cli.py" = ["B008"]
 
 [tool.pyright]
 typeCheckingMode = "standard"

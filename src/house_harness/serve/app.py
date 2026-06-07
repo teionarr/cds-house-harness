@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import os
 
-from house_harness.schema import ServeMode, TrustEnvelope
+from house_harness.schema import Confidence, ServeMode, Status, TrustEnvelope
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,11 @@ def require_token(presented: str | None) -> None:
 def serve_mode() -> ServeMode:
     """Resolve the serve mode. DEFAULT is live; mock requires explicit opt-in via
     HOUSE_HARNESS_SERVE_MODE=mock. Anything other than 'mock' is treated as live."""
-    return ServeMode.mock if os.environ.get("HOUSE_HARNESS_SERVE_MODE", "live").lower() == "mock" else ServeMode.live
+    return (
+        ServeMode.mock
+        if os.environ.get("HOUSE_HARNESS_SERVE_MODE", "live").lower() == "mock"
+        else ServeMode.live
+    )
 
 
 def health() -> dict:
@@ -63,12 +67,45 @@ def answer(query: str) -> TrustEnvelope:
         from house_harness.synthesis import _mock
 
         return _mock.answer(query)  # stamped mode=mock
-    # live: real pipeline — ontology-first. Load the harness, then call the single
-    # orchestrator that encodes the call graph (resolve_question -> ontology.query ->
-    # claims_from_assertions -> build_envelope, answer_path=ontology). Raw retrieval
-    # is reached only inside respond._fallback, never as the default.
-    # TODO (Phase 3): from house_harness.synthesis import respond; return respond.answer(query, harness)
-    raise NotImplementedError("live synthesis pipeline not wired yet — wire synthesis.respond.answer (PLAN.md Phase 3)")
+    # live: real pipeline — ontology-first. Load the resolved ontology + harness once,
+    # then call the orchestrator that encodes the call graph (resolve_question ->
+    # ontology.query -> claims_from_assertions -> build_envelope, answer_path=ontology).
+    # Raw retrieval is reached only inside respond._fallback, never as the default.
+    from house_harness.guards.redact import redact
+    from house_harness.synthesis import respond
+
+    harness, store = _serving_state()
+    if harness is None or not store:
+        # honest operational failure — NOT a mock; the agent retries/alerts.
+        return TrustEnvelope(
+            status=Status.failed,
+            answer="",
+            errors=["ontology not built — run `house-harness run data/` or enable ingest-on-boot"],
+            confidence=Confidence.abstain,
+        )
+    env = respond.answer(query, harness, store)
+    env.answer = redact(env.answer)  # egress redaction before the envelope leaves the process
+    return env
+
+
+_STATE: tuple[object | None, dict] | None = None
+
+
+def _serving_state() -> tuple[object | None, dict]:
+    """Load (harness, assertion store) from SQLite once and cache for the process.
+    `reset_state()` clears it after a re-ingest."""
+    global _STATE
+    if _STATE is None:
+        from house_harness.pipeline.run import load_serving_state
+
+        _STATE = load_serving_state()
+    return _STATE
+
+
+def reset_state() -> None:
+    """Drop the cached ontology so the next answer reloads it (after a re-ingest)."""
+    global _STATE
+    _STATE = None
 
 
 # TODO: wire MCP tools (ask_company, get_entity, get_harness, get_harness_health)

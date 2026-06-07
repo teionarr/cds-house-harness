@@ -44,7 +44,7 @@ class _Handler(BaseHTTPRequestHandler):
         if self.path.rstrip("/") != "/ask":
             self._send(404, {"error": "not found"})
             return
-        token = (self.headers.get("Authorization", "").removeprefix("Bearer ").strip() or None)
+        token = self.headers.get("Authorization", "").removeprefix("Bearer ").strip() or None
         try:
             _app.require_token(token)
         except PermissionError:
@@ -71,7 +71,18 @@ def run(ingest_on_boot: bool = False, corpus: Path | None = None, port: int | No
     port = port or int(os.environ.get("APP_PORT", "8080"))
     logger.info("tracing %s", "on" if _tracing.init_tracing() else "off (no LANGSMITH_API_KEY)")
     if ingest_on_boot:
-        # TODO: load_corpus(corpus) — ingest only new/changed files (hash manifest), not all.
-        logger.warning("[skeleton] --ingest-on-boot is a no-op until ingest lands (corpus=%s)", corpus)
+        if _app.serve_mode().value == "mock":
+            logger.info("[mock] skipping ingest-on-boot (the skeleton serves canned envelopes)")
+        else:
+            from house_harness.pipeline.run import ingest_on_boot as _ingest
+
+            corpus_dir = (
+                str(corpus) if corpus else os.environ.get("HOUSE_HARNESS_CORPUS_DIR", "data")
+            )
+            try:
+                if _ingest(corpus_dir):
+                    _app.reset_state()  # reload the freshly-built ontology
+            except Exception:  # noqa: BLE001 — a failed boot-ingest must not stop the server
+                logger.exception("ingest-on-boot failed; serving with whatever is in the store")
     logger.info("house-harness serving on :%d (mode=%s)", port, _app.serve_mode().value)
-    ThreadingHTTPServer(("0.0.0.0", port), _Handler).serve_forever()
+    ThreadingHTTPServer(("0.0.0.0", port), _Handler).serve_forever()  # noqa: S104 — container binds all interfaces
