@@ -2,6 +2,15 @@
 
 Running log — newest first. Each entry: what changed / what failed / next step. Keep entries short.
 
+## 2026-06-07 (build start — foundation + Phase 2 spine + ingest)
+- **Foundation:** git initialized (+ `.gitignore`: secrets/venv/*.db/caches); deps installed (`uv sync`); Doppler project **house-harness** created (dev config) with `HOUSE_HARNESS_API_TOKEN` (generated), model/store/serve/tracing defaults; `ANTHROPIC_API_KEY` placeholder pending Oren. `flyctl` installed (needs `fly auth login`). Decisions locked: direct Anthropic + SQLite + dedicated Doppler project; product framing (no test/grading language in delivered docs — P5 sweep); complies with `opencodos/test-task` (data matches the vendored copy).
+- **Track A — ontology spine (Phase 2, DONE):** implemented `ontology.upsert` (idempotent stable id; same-tier recency supersession; cross-tier left live), `resolve` (scope-aware grouping → current view + `Dissent`, conflicts first-class), `query` (ontology-first read; `scope=None` wildcard returns every segment). `tests/test_ontology.py` = 10 cases green against the resolve fixture (all 5 mechanics: coexist, conflict tie-break, recency supersession + order-independence, idempotent re-ingest, chat noise-floor).
+- **Track B — ingest (DONE):** `ingest/loaders.py` `load_one` (md/html/pdf/dispatch + path→ArtifactType/source_type + as_of date parse + `gate.neutralize`) and `load_image` (real multimodal path, fails-as-IngestFailure until key). `tests/test_ingest.py` = 9 green; 41 artifacts (24 interview / 4 doc / 3 chat / 3 dashboard / 2 pdf / 2 email / 1 all_hands / 1 board / 1 review) + 4 image IngestFailures (no key yet, expected).
+- **Fixed:** editable install (`uv pip install -e .`) — `uv run pytest`/`house-harness` CLI now import cleanly without `PYTHONPATH`. ruff: per-file `S101` ignore for tests; `sha1(usedforsecurity=False)`.
+- **Verified:** `uv run pytest -q` → 19 passed; ruff+format clean on touched files; compileall 0.
+- **Next:** Phase 1 deploy skeleton live on Fly (needs Oren `fly auth login`); in parallel — Track F eval-runner (`evals/harness.py`) + Track C deploy artifacts (local docker /health), then Phase 3 vertical slice once `ANTHROPIC_API_KEY` lands. Repo-wide pre-existing stub lint deferred to P5.
+
+
 ## 2026-06-07 (v1 scope locked)
 - **Scope decision (Oren):** build the live ontology-first slice (P3) + **vision chart extraction (kept)**. **Deferred, designed-not-built:** feedback loop (§4.11), reader/executor runtime split (§4.10 — v1 is read-only Q&A; untrusted-content gate + egress redaction still ship), confidence calibration, larger eval set.
 - Set in PLAN (P4 keeps vision/drops the split; P5 drops calibration; Deferred block rewritten), SOLUTION ("What I didn't tackle" rewritten to the 4 + vision-in-scope note that vision won't move uplift on this corpus; known-limits adjusted for deferred loop/calibration), HANDOFF (v1-scope line), SUBMISSION (reader/executor row → design ✓, read-only v1).

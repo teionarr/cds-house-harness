@@ -23,6 +23,7 @@ Store model (resolves the dict-vs-SQLite question — they are NOT in conflict):
 from __future__ import annotations
 
 import hashlib
+from collections import defaultdict
 
 from house_harness.schema import ArtifactType, Assertion, Dissent, SourceTier
 
@@ -43,27 +44,94 @@ def assertion_id(subject: str, attribute: str, scope: str | None, source: str) -
     """Stable ID = hash(subject, attribute, scope, source). Re-deriving the same
     fact from the same source yields the same ID -> upsert, never a duplicate."""
     key = "\u241f".join([subject, attribute, scope or "", source])
-    return hashlib.sha1(key.encode()).hexdigest()[:16]
+    return hashlib.sha1(key.encode(), usedforsecurity=False).hexdigest()[:16]
+
+
+def _group_key(a: Assertion) -> tuple[str, str, str | None]:
+    return (a.subject, a.attribute, a.scope)
+
+
+def _rank(a: Assertion) -> tuple[int, str]:
+    """Resolution order: higher reliability first, then more recent. A missing
+    `as_of` sorts oldest. ISO date strings compare correctly lexicographically."""
+    return (int(a.reliability), a.as_of or "")
 
 
 def upsert(store: dict[str, Assertion], a: Assertion) -> dict[str, Assertion]:
-    """Idempotent write: same ID replaces in place; a fresher/higher-tier
-    assertion on the same (subject, attribute, scope) supersedes the prior one
-    (prior.live = False, new.supersedes += [prior.id]). TODO: implement the
-    recency+reliability comparison; key by (subject, attribute, scope)."""
-    raise NotImplementedError
+    """Idempotent write with same-tier recency supersession.
+
+    - **Idempotent:** the assertion is keyed by its stable `id`
+      (`assertion_id(subject, attribute, scope, source)`), so re-deriving the same
+      fact from the same source replaces in place — never a duplicate.
+    - **Supersession (a temporal update, NOT a standing conflict):** when the new
+      assertion shares (subject, attribute, scope) and *reliability tier* with an
+      existing live one but carries a different value, the older `as_of` loses —
+      its `live` flips to False and the newer one's `supersedes` records it
+      (Confluence June -> Sep). Order-independent: an out-of-order older arrival is
+      itself marked superseded on the way in.
+    - **Cross-tier disagreements are left LIVE on purpose** — they are real
+      conflicts (board vs weekly, official vs chat) that `resolve()` surfaces as
+      `Dissent` with the highest tier winning, rather than silently collapsing.
+    """
+    store[a.id] = a  # idempotent replace by stable id
+    for other_id, b in list(store.items()):
+        if other_id == a.id or not b.live:
+            continue
+        if _group_key(b) != _group_key(a) or b.reliability != a.reliability:
+            continue  # cross-tier/other group -> a resolve() conflict, not supersession
+        if b.value == a.value:
+            continue  # corroborating duplicate from another source — both stay live
+        if _rank(a) > _rank(b):  # a is fresher -> a supersedes b
+            b.live = False
+            if b.id not in a.supersedes:
+                a.supersedes.append(b.id)
+        elif _rank(a) < _rank(b):  # a arrived out of order, already stale
+            a.live = False
+            if a.id not in b.supersedes:
+                b.supersedes.append(a.id)
+        # equal rank + differing value -> genuine same-tier conflict: leave both live
+    return store
+
+
+def _resolve_assertions(assertions: list[Assertion]) -> tuple[list[Assertion], list[Dissent]]:
+    """Project a set of LIVE assertions to one current value per
+    (subject, attribute, scope) group, emitting a `Dissent` for any group whose
+    members disagree. Conflicts are surfaced, never collapsed. Shared by
+    `resolve` (whole store) and `query` (a filtered slice)."""
+    groups: dict[tuple[str, str, str | None], list[Assertion]] = defaultdict(list)
+    for a in assertions:
+        if a.live:
+            groups[_group_key(a)].append(a)
+    winners: list[Assertion] = []
+    dissents: list[Dissent] = []
+    for (subject, attribute, scope), members in groups.items():
+        winner = max(members, key=_rank)
+        winners.append(winner)
+        if len({m.value for m in members}) > 1:
+            where = f"{subject} · {attribute}" + (f" @{scope}" if scope else "")
+            point = (
+                f"{where}: sources disagree (current: {winner.value!r} from "
+                f"{winner.source.artifact_id}, tier {winner.reliability.name})"
+            )
+            dissents.append(
+                Dissent(point=point, sources_disagree=[m.source.artifact_id for m in members])
+            )
+    return winners, dissents
 
 
 def resolve(store: dict[str, Assertion]) -> tuple[dict[str, Assertion], list[Dissent]]:
-    """Group LIVE assertions by (subject, attribute, scope).
+    """Group LIVE assertions by (subject, attribute, scope) into the current view.
 
     - Different scope on the same attribute -> co-exist, NOT a conflict
-      (NPS@SEA-enterprise=62 and NPS@aggregate=47 are both true).
+      (NPS@SEA-enterprise=62 and NPS@aggregate=47 are both true, no dissent).
     - Same (subject, attribute, scope) with differing values -> a real conflict:
-      keep the highest (reliability, recency) as current and emit a `Dissent`
-      naming the disagreeing sources — never silently collapse to one.
-    TODO: implement grouping + the tie-break; return (current_view, dissents)."""
-    raise NotImplementedError
+      the highest (reliability, recency) is current and a `Dissent` names the
+      disagreeing sources — never silently collapsed to one.
+
+    Returns (current_view keyed by the winning assertion's id, dissents). Pure: it
+    reads the store and does not mutate it (supersession already happened at upsert)."""
+    winners, dissents = _resolve_assertions(list(store.values()))
+    return {w.id: w for w in winners}, dissents
 
 
 def query(
@@ -82,9 +150,20 @@ def query(
     decided here at ingest, deterministically, not re-litigated by a model staring
     at 55K tokens of contradictory text.
 
+    `scope=None` is the wildcard: it returns one current value per scope for the
+    (subject, attribute) — so "What's our NPS?" yields aggregate AND each segment,
+    each carrying its own scope, rather than forcing a single number.
+
     Coverage is the abstain signal: an empty result for an in-scope question is an
     honest gap (abstain + escalate), NOT a reason to fall back to raw text and guess.
     Raw retrieval (retrieval/strategy.py) is the fallback ONLY for questions whose
-    (subject, attribute) lie outside the controlled namespace. TODO: implement the
-    match (exact subject/attribute, scope-aware) over the resolved current view."""
-    raise NotImplementedError
+    (subject, attribute) lie outside the controlled namespace."""
+    matched = [
+        a
+        for a in store.values()
+        if a.live
+        and (subject is None or a.subject == subject)
+        and (attribute is None or a.attribute == attribute)
+        and (scope is None or a.scope == scope)
+    ]
+    return _resolve_assertions(matched)

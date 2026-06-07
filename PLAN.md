@@ -16,7 +16,7 @@ Prove the skeleton **live** first, then build one trap all the way through, then
 - **Stop-line:** a live production URL returns a well-formed envelope from the mock. "Live in production" (a pass/fail brief requirement) is now de-risked at hour ~1; everything after is swapping real logic behind the frozen return type. (§4.6, §5)
 
 ### Phase 2 — Ontology spine, no LLM (~1h)  ← highest-leverage hour
-- [ ] `ontology.upsert` (idempotent, stable `assertion_id`) + `ontology.resolve` (scope-aware conflict → current view + `Dissent`); `Assertion`/`Alias`/`SourceTier`/`RelationKind` wired. Pure functions, unit-tested against `tests/fixtures/assertions_resolve.json`.
+- [x] `ontology.upsert` (idempotent, stable `assertion_id`) + `ontology.resolve` (scope-aware conflict → current view + `Dissent`) + `ontology.query` (ontology-first read); `Assertion`/`Alias`/`SourceTier`/`RelationKind` wired. Pure functions, unit-tested against `tests/fixtures/assertions_resolve.json` (`tests/test_ontology.py`, 10 cases green).
 - **Stop-line:** `resolve()` separates "both true" (NPS 62 sea_enterprise vs 47 aggregate) from a real same-scope conflict + supersession, and re-ingest is idempotent — all on synthetic data, zero external deps. (§4.13)
 
 ### Phase 3 — First vertical slice (~1.5h)  ← DEFENSIBLE SUBMISSION
