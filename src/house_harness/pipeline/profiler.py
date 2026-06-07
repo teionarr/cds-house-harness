@@ -8,6 +8,7 @@ small — a profiler and a lookup. If it ever wants to be cleverer, stop.
 
 from __future__ import annotations
 
+import datetime
 from collections.abc import Iterable
 
 from house_harness.schema import (
@@ -30,9 +31,54 @@ CONTEXT_BUDGET_TOKENS = 120_000
 
 
 def profile_corpus(artifacts: Iterable[Artifact]) -> CorpusProfile:
-    """Measure volume, format mix, entity/date spread, languages. TODO: implement
-    (token count, type histogram, distinct-entity estimate, min/max as-of dates)."""
-    raise NotImplementedError
+    """Measure volume, format mix, entity/date spread, languages — deterministic,
+    no LLM. The result feeds plan_pipeline's rule table."""
+    arts = list(artifacts)
+
+    # ~4 chars/token is the standard rough proxy; exact count doesn't matter here.
+    token_estimate = sum(len(a.text) // 4 for a in arts)
+
+    format_mix: dict[str, int] = {}
+    for a in arts:
+        key = a.metadata.get("source_type") or a.type.value
+        format_mix[key] = format_mix.get(key, 0) + 1
+
+    # HEURISTIC: each interview ≈ one person; every other artifact ≈ one entity.
+    # Only consumed by plan_pipeline's `>= 5` graph gate, so only the threshold
+    # crossing matters, not the precise count.
+    interviews = sum(1 for a in arts if a.metadata.get("source_type") == "interview")
+    others = len(arts) - interviews
+    entity_estimate = interviews + others
+
+    has_images = any(
+        a.metadata.get("vision_extracted") == "true"
+        or a.metadata.get("source_type") in {"image", "chart"}
+        for a in arts
+    )
+
+    dates: list[datetime.date] = []
+    for a in arts:
+        raw = a.metadata.get("as_of")
+        if not raw:
+            continue
+        try:
+            dates.append(datetime.date.fromisoformat(raw))
+        except ValueError:
+            continue
+    date_span_days = (max(dates) - min(dates)).days if len(dates) >= 2 else None
+
+    languages = ["en"]
+    if any(" não " in a.text or " obrigado" in a.text for a in arts):
+        languages.append("pt")
+
+    return CorpusProfile(
+        token_estimate=token_estimate,
+        format_mix=format_mix,
+        entity_estimate=entity_estimate,
+        has_images=has_images,
+        date_span_days=date_span_days,
+        languages=languages,
+    )
 
 
 def plan_pipeline(profile: CorpusProfile) -> PipelineConfig:
@@ -43,7 +89,7 @@ def plan_pipeline(profile: CorpusProfile) -> PipelineConfig:
     strategy = (
         ContextStrategy.ontology_first  # primary answer source, any size
         if profile.token_estimate <= CONTEXT_BUDGET_TOKENS
-        else ContextStrategy.hybrid     # over budget: the fallback must use an index
+        else ContextStrategy.hybrid  # over budget: the fallback must use an index
     )
     return PipelineConfig(
         context_strategy=strategy,

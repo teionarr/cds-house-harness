@@ -39,13 +39,37 @@ def resolve_question(query: str) -> tuple[str | None, str | None, str | None]:
     raise NotImplementedError
 
 
+def _span_id(a: Assertion) -> str:
+    """A citation id for a claim: the source artifact plus its character span, so
+    the offline entailment judge (synthesis/verify.py) can fetch the exact text."""
+    return f"{a.source.artifact_id}#{a.source.start}-{a.source.end}"
+
+
 def claims_from_assertions(assertions: list[Assertion]) -> list[Claim]:
     """Project resolved assertions into Claims — the ONLY claim builder on the
     primary path. Every claim carries the `assertion_id` it came from, plus the
     assertion's source span, as_of, and scope. `verified` stays None at runtime
     (entailment is offline). This is the structural guarantee that an ontology
-    answer is fully sourced. TODO: implement the projection."""
-    raise NotImplementedError
+    answer is fully sourced (cite-or-abstain): a claim cannot exist without the
+    assertion id and source span it projects.
+
+    The claim text is a faithful, deterministic rendering of the resolved fact
+    (subject · attribute [@scope] = value); the natural-language narrative is
+    composed separately in `answer()` over these sourced claims."""
+    claims: list[Claim] = []
+    for a in assertions:
+        scope = f" @{a.scope}" if a.scope else ""
+        claims.append(
+            Claim(
+                text=f"{a.subject} · {a.attribute}{scope} = {a.value}",
+                sources=[_span_id(a)],
+                as_of=a.as_of,
+                scope=a.scope,
+                assertion_id=a.id,
+                verified=None,  # entailment is offline (§4.12); never asserted at runtime
+            )
+        )
+    return claims
 
 
 def answer(query: str, harness: HouseHarness) -> TrustEnvelope:

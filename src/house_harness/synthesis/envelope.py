@@ -19,6 +19,7 @@ from house_harness.schema import (
     Dissent,
     Escalation,
     HouseHarness,
+    RelationKind,
     Status,
     TrustEnvelope,
 )
@@ -63,11 +64,11 @@ def build_envelope(
 
 def _status(errors: list[str], answer: str, confidence: Confidence) -> Status:
     if errors and not answer:
-        return Status.failed       # could not complete — agent retries/alerts
+        return Status.failed  # could not complete — agent retries/alerts
     if errors:
-        return Status.degraded     # partial — answer exists but a stage failed
+        return Status.degraded  # partial — answer exists but a stage failed
     if confidence is Confidence.abstain:
-        return Status.abstained    # no source covers it — agent escalates/fetches
+        return Status.abstained  # no source covers it — agent escalates/fetches
     return Status.answered
 
 
@@ -86,8 +87,29 @@ def _freshness(claims: list[Claim]) -> str | None:
     return f"newest supporting source: {max(dates)}" if dates else None
 
 
+def _tokens(text: str) -> set[str]:
+    """Content tokens (length > 3, lowercased) for keyword matching."""
+    return {w.lower().strip(".,:;!?\"'()") for w in text.split() if len(w) > 3}
+
+
 def _route(gap: str, harness: HouseHarness) -> Escalation:
-    # TODO: resolve the gap's subject to its owning authority via the harness
-    # guardrails / ontology. Stub returns an unrouted escalation.
-    _ = harness
+    """Resolve a coverage gap to the owning authority already in the harness — the
+    line between a search box that admits ignorance and a decision engine that
+    knows who holds the answer. Deterministic keyword routing, two sources:
+
+    1. **Guardrails** — a guardrail whose `rule` shares a content word with the gap
+       routes to its `authority` (e.g. a pricing gap -> the pricing authority).
+    2. **Taxonomy `owns` edges** — failing that, an `owns` edge whose target matches
+       a gap word routes to the owner node (e.g. a metric -> its metric owner).
+
+    No match -> an honest unrouted escalation (`owner="unresolved"`), never a guess."""
+    gap_tokens = _tokens(gap)
+    for g in harness.guardrails:
+        if g.authority and gap_tokens & _tokens(g.rule):
+            return Escalation(
+                gap=gap, owner=g.authority, evidence=[s.artifact_id for s in g.sources]
+            )
+    for edge in harness.taxonomy.edges:
+        if edge.relation is RelationKind.owns and gap_tokens & _tokens(edge.dst):
+            return Escalation(gap=gap, owner=edge.src, evidence=[])
     return Escalation(gap=gap, owner="unresolved", evidence=[])

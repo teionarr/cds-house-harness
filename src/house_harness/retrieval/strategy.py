@@ -17,9 +17,11 @@ of contradictory text reproduces exactly the failures the ontology prevents.
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import Protocol
 
-from house_harness.schema import ContextStrategy, PipelineConfig, RetrievedChunk
+from house_harness.schema import Artifact, ContextStrategy, PipelineConfig, RetrievedChunk
 
 
 class ContextProvider(Protocol):
@@ -29,10 +31,45 @@ class ContextProvider(Protocol):
 class WholeCorpus:
     """Fallback: loads the raw documents into context — global recall, no index.
     Used only when the ontology has no in-scope coverage for the question. Chart
-    facts and other low-tier content stay provisional. TODO: implement."""
+    facts and other low-tier content stay provisional.
+
+    Whole-corpus mode does NOT rank: it returns one chunk per artifact (everything)
+    and lets the consuming LLM do relevance over the full set. `artifacts` may be
+    injected (tests / a pre-loaded corpus) or left None to lazily load the corpus
+    from disk on first `gather`."""
+
+    def __init__(self, artifacts: list[Artifact] | None = None) -> None:
+        self.artifacts = artifacts
+
+    def _load(self) -> list[Artifact]:
+        """Lazily load + cache the corpus once. A missing dir yields an empty list,
+        not a crash (an empty fallback is an honest no-coverage signal)."""
+        if self.artifacts is None:
+            from house_harness.ingest.loaders import load_corpus
+
+            corpus_dir = Path(os.environ.get("HOUSE_HARNESS_CORPUS_DIR", "data"))
+            if corpus_dir.is_dir():
+                files = [str(p) for p in corpus_dir.rglob("*") if p.is_file()]
+                artifacts, _failures = load_corpus(files)
+                self.artifacts = artifacts
+            else:
+                self.artifacts = []
+        return self.artifacts
 
     def gather(self, query: str) -> list[RetrievedChunk]:
-        raise NotImplementedError
+        # query is part of the ContextProvider protocol but intentionally unused:
+        # whole-corpus mode returns everything (global recall) and the LLM ranks.
+        _ = query
+        return [
+            RetrievedChunk(
+                artifact_id=a.id,
+                text=a.text,
+                score=1.0,
+                as_of=a.metadata.get("as_of"),
+                retriever="whole_corpus",
+            )
+            for a in self._load()
+        ]
 
 
 def provider_for(config: PipelineConfig) -> ContextProvider:
