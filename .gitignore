@@ -1,0 +1,30 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Owned store + generated artifacts
+*.db
+*.sqlite
+*.sqlite3
+data/house_harness.db
+out/
+evals/workspace/
+evals/validation/report.json
+
+# Tooling
+.DS_Store
+node_modules/
+.uv/
+uv.lock.tmp

@@ -1,0 +1,70 @@
+[project]
+name = "house-harness"
+version = "0.1.0"
+description = "Company-definition engine: messy org artifacts -> a House Harness (<COMPANY>.md + ontology graph)"
+requires-python = ">=3.12"
+dependencies = [
+    # harness (rented, kept thin)
+    "langchain>=1.0",
+    "langgraph>=1.0",
+    "langchain-anthropic>=1.0",
+    "langchain-openai>=1.0",
+    # owned corpus store: SQLite (stdlib) for v1 — corpus fits in context, no vector
+    # index needed. The pgvector/Postgres scale path lives in the `scale` extra below.
+    # graph + centrality (moat)
+    "networkx>=3.3",
+    # contracts + cli
+    "pydantic>=2.7",
+    "typer>=0.12",
+    "python-dotenv>=1.0",
+    # observability (LangSmith SDK; LangChain family, lives behind obs/)
+    "langsmith>=0.1",
+    # ingestion: multi-format loaders
+    "pypdf>=4.2",
+    "beautifulsoup4>=4.12",
+    # test data
+    "datasets>=2.20",
+    # MCP (tools keystone)
+    "mcp>=1.2",
+]
+
+[project.optional-dependencies]
+# Scale path ONLY (documented, not v1): dense vector index when a live corpus
+# outgrows the in-context budget. v1 ships SQLite + the ontology slice.
+scale = [
+    "langchain-postgres>=0.0.12",
+    "psycopg[binary]>=3.2",
+    "pgvector>=0.3",
+    "rank-bm25>=0.2.2",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6",
+    "pyright>=1.1.380",
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+    "pre-commit>=3.8",
+]
+
+[project.scripts]
+house-harness = "house_harness.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S", "ASYNC"]
+# S = bandit security rules: untrusted-content + secrets discipline matters here.
+
+[tool.pyright]
+typeCheckingMode = "standard"
+pythonVersion = "3.12"
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]

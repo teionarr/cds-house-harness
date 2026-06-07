@@ -1,0 +1,28 @@
+services:
+  app:
+    build: .
+    # No env_file: values come from the process env — injected by `doppler run --`
+    # (Doppler path) or interpolated by compose from ./.env (fallback path).
+    environment:
+      # Corpus ≈ 55K tokens fits WholeCorpus, so no vector DB — assertions live in
+      # a local SQLite file. (Hybrid + pgvector is the documented scale path only.)
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///./data/house_harness.db}
+      APP_PORT: ${APP_PORT:-8080}
+      HOUSE_HARNESS_MODEL: ${HOUSE_HARNESS_MODEL:-anthropic:claude-sonnet-4-6}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      HOUSE_HARNESS_API_TOKEN: ${HOUSE_HARNESS_API_TOKEN:-}
+      # DEFAULT live; set HOUSE_HARNESS_SERVE_MODE=mock only for the Phase-1 skeleton.
+      HOUSE_HARNESS_SERVE_MODE: ${HOUSE_HARNESS_SERVE_MODE:-live}
+      # Observability — LangSmith (LangChain family). Hosted by default; LangChain
+      # runs auto-trace from these env vars, so there is no local tracing service
+      # to run. For sensitive corpora, set LANGSMITH_ENDPOINT to a self-hosted/VPC
+      # instance (the swappable-route stance, same as the model seam).
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-true}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-house-harness}
+      LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    # Ingest-at-startup, then serve the agent interface. Re-running is safe.
+    command: ["uv", "run", "house-harness", "serve", "--ingest-on-boot", "data/"]

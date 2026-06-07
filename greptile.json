@@ -1,0 +1,22 @@
+{
+  "_comment": "Greptile custom review rules. Confirm exact schema against current Greptile docs before relying on it; rules are natural-language and enforced by the review agent on each PR.",
+  "instructions": "Review for production-grade quality the way this team works: most code is LLM-written, so focus on the conventions around the model, not cosmetic nits. Block on the rules below.",
+  "rules": [
+    "Provider isolation: a model-provider SDK (anthropic, openai, etc.) may be imported ONLY in src/house_harness/config/llm.py. Flag any import elsewhere.",
+    "Untrusted content: ingested or retrieved artifact text must be treated as data, never instructions. Flag any path where artifact content can influence tool use, system prompts, or output structure.",
+    "Provenance required: every answer or generated harness rule must cite the source artifact/span it came from. Flag claims that are returned without attribution.",
+    "Evals for new behavior: any new capability, prompt change, or retrieval change must ship with a corresponding eval case in evals/datasets/helixpay/. Block PRs that add behavior without an eval.",
+    "Contradiction handling: when sources disagree, code must surface the conflict with sources and recency, not silently pick one value.",
+    "Hybrid retrieval integrity: the retriever must fuse dense + sparse + graph results (no silent fallback to dense-only); recency weighting and as-of dates must be preserved through the pipeline.",
+    "Secrets: no API keys, tokens, or credentials in code, fixtures, logs, or committed .env files.",
+    "Least privilege + gates: tools get only the scope a step needs; no consequential or irreversible action without an approval gate; every agent has a hard step cap.",
+    "Swappability: no business logic coupled to a specific tracing or vector vendor outside obs/ and the store layer.",
+    "Typed boundaries: flag any value crossing a module boundary or returned by an LLM that is a raw dict or unparsed string instead of a Pydantic model. LLM calls feeding a downstream stage must use structured output (config/structured.py), not regex parsing.",
+    "Failure isolation: ingestion must be per-file isolated (bad file -> IngestFailure, not a crash); operational failures must surface as status=failed/degraded + errors on the envelope, never silently collapsed into abstained.",
+    "Privilege separation: flag any model call that ingests untrusted input (user query or retrieved content) and also has tools bound, or any path where untrusted free text reaches the executor. The reader pod emits only a validated ReaderOutput; the executor runs only allowlisted PlanRequests over a closed vocabulary (no arbitrary URL/fetch/shell).",
+    "Provider leakage: content may leave to a model only via config/llm.py; flag whole-document context where sourced spans would do. Traces must carry only metadata + sourced spans, never raw corpus; flag any trace payload that includes whole documents (host can be LangSmith Cloud or, for sensitive corpora, a self-hosted LANGSMITH_ENDPOINT)."
+  ],
+  "labels": {
+    "blocking": ["provider-isolation", "untrusted-content", "missing-eval", "secrets", "no-provenance"]
+  }
+}

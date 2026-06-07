@@ -1,0 +1,31 @@
+# Live deploy (Fly.io) — Python app + a SQLite file on a mounted volume = a real
+# URL, not localhost. v1 owns the corpus in SQLite (no managed Postgres); the
+# volume persists the ontology across scale-to-zero restarts; a cold boot re-ingests
+# ONLY files that changed (hash manifest), not the whole corpus. `fly launch --no-deploy` then `fly volumes create hh_data -s 1`
+# then `fly deploy`. Secrets: `fly secrets set ANTHROPIC_API_KEY=... \
+# HOUSE_HARNESS_API_TOKEN=... LANGSMITH_API_KEY=...` (never commit).
+app = "house-harness"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  HOUSE_HARNESS_MODEL = "anthropic:claude-sonnet-4-6"
+  DATABASE_URL = "sqlite:////data/house_harness.db"   # on the mounted volume
+
+[[mounts]]
+  source = "hh_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true      # scale to zero; note cold-start in SOLUTION
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[http_service.checks]]
+  path = "/health"               # unauthenticated probe
+  interval = "15s"
+  timeout = "2s"

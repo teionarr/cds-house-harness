@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Install deps
+        run: uv sync --all-extras --dev
+      - name: Lint (ruff)
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Type check (pyright)
+        run: uv run pyright
+      - name: Unit tests
+        run: uv run pytest -q --cov=house_harness --cov-report=term-missing
+
+  # Anti-"deploy-tax-at-hour-5": prove the DEPLOYABLE ARTIFACT comes up healthy on
+  # every push. Red here = you can't deploy = no Phase 2+ work (see PLAN Phase 1).
+  deploy-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build deployable image
+        run: docker build -t house-harness:ci .
+      - name: Container comes up healthy (the deploy gate)
+        run: |
+          docker run -d --name hh -e HOUSE_HARNESS_SERVE_MODE=mock -e APP_PORT=8080 -p 8080:8080 house-harness:ci serve
+          ok=0
+          for _ in $(seq 1 30); do
+            if curl -fsS localhost:8080/health | grep -q '"status": "ok"'; then ok=1; break; fi
+            sleep 2
+          done
+          docker logs hh || true
+          curl -fsS localhost:8080/health || true
+          test "$ok" = "1"
+      - name: Stop
+        if: always()
+        run: docker rm -f hh || true

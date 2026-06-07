@@ -1,0 +1,37 @@
+name: evals
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * *"   # full nightly run
+
+jobs:
+  eval-gate:
+    runs-on: ubuntu-latest
+    env:
+      # CI uses a cheap/fast model + a small recorded slice so the gate is fast & deterministic.
+      HOUSE_HARNESS_MODEL: ${{ vars.CI_EVAL_MODEL }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - run: uv sync --all-extras --dev
+
+      - name: Structural + provenance evals (must pass 100%)
+        run: uv run python -m evals.harness --suite structural provenance --fail-under 1.0
+
+      - name: Uplift eval (with_harness vs without_harness; subset on PR, full nightly)
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            uv run python -m evals.harness --suite uplift coverage --full --fail-under 0.6 --require-positive-delta
+          else
+            uv run python -m evals.harness --suite uplift --subset 20 --fail-under 0.6 --require-positive-delta
+          fi
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: evals/reports/

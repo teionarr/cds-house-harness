@@ -1,0 +1,6 @@
+# Doppler config. Run `doppler setup` once to link, then `./install.sh`
+# (or `doppler run -- docker compose up`) injects secrets at runtime —
+# nothing is written to disk. Without Doppler, install.sh falls back to .env.
+setup:
+  project: house-harness
+  config: dev

@@ -1,0 +1,73 @@
+{
+  "_note": "GOLDEN EXTRACTION FIXTURE \u2014 regression-tests the extraction PROMPT (distinct from assertions_resolve.json, which tests resolve/upsert mechanics). The harness runs the real extractor on each case's `input_text` and scores precision/recall of emitted Assertions against `expected_assertions` (value-normalized), AND checks that nothing in `must_not_emit` is produced. Inputs are verbatim excerpts from data/. This is the highest-iteration artifact in the repo; keep it small and exact.",
+  "cases": [
+    {
+      "id": "daniel_tan_confluence",
+      "artifact_id": "interviews/leadership/Daniel_Tan.md",
+      "source_tier": "interview",
+      "reliability": 2,
+      "as_of": "2026-04-10",
+      "input_text": "confluence. and i'll give you the real status not the all-hands status. the original commitment was end of june for a unified platform. we are not making end of june. the merchant id schema migration is the foundation and we've been running dual-write for three weeks and we still have point four percent of records mismatching between the two systems. that's about thirty thousand records out of seven million, the long tail. so realistic ga is late august to mid september. i would commit to september thirty if you held me to a number which is what i told priya in the weekly. publicly we are still saying june. that is going to change in the next two weeks.",
+      "expected_assertions": [
+        {
+          "subject": "confluence",
+          "attribute": "confluence.ga_date",
+          "value": "2026-09-30",
+          "scope": null,
+          "as_of": "2026-04-10",
+          "note": "the real re-baselined date Daniel commits to; should win resolve() over the public June value on recency+tier"
+        },
+        {
+          "subject": "confluence",
+          "attribute": "confluence.ga_date",
+          "value": "2026-06-30",
+          "scope": "public_statement",
+          "as_of": "2026-04-10",
+          "note": "STALENESS TRAP: capture the publicly-stated date WITH a scope qualifier and the author's own 'we are not making' flag, so resolve() marks it superseded/dissent rather than silently dropping it"
+        },
+        {
+          "subject": "confluence",
+          "attribute": "confluence.status",
+          "value": "behind plan; re-baseline imminent",
+          "scope": null,
+          "as_of": "2026-04-10"
+        },
+        {
+          "subject": "merchant_id_migration",
+          "attribute": "new_attribute:migration.mismatch_rate",
+          "value": "0.4% (~30k of 7M records)",
+          "scope": null,
+          "as_of": "2026-04-10",
+          "note": "ESCAPE-HATCH TRAP: mismatch_rate is not in the controlled vocab \u2014 extractor must emit new_attribute:<slug> for review, NOT silently coerce to a near-miss key"
+        }
+      ],
+      "must_not_emit": [
+        "any assertion treating 'the all-hands status' (June, on-track) as the current/true GA date without a stale/superseded flag"
+      ]
+    },
+    {
+      "id": "exec_huddle_signal_vs_noise",
+      "artifact_id": "chat/exec-huddle-april-week3.md",
+      "source_tier": "chat",
+      "reliability": 1,
+      "as_of": "2026-04-15",
+      "input_text": "[10:12 Rajesh Iyer] guys did anyone see the F1 race lol that overtake on lap 41 was unreal\n[10:13 Hannah Park] i missed it. recap?\n[10:13 Rajesh Iyer] verstappen out of nowhere from p7\n... \n[Wed Apr 15 09:55 Daniel Tan] for my section i'm going to soften the 'on track' framing slightly. saying 'the plan is end of june, the team is working through the schema migration which is the critical path, q3 is not on the table.'\n[09:56 Wei Chen] that's right. don't surprise the company today.\n[11:58 Wei Chen] thanks team. that was fine. we'll need to come back to confluence in 2 weeks though, i agree with daniel that june is unlikely.",
+      "expected_assertions": [
+        {
+          "subject": "confluence",
+          "attribute": "confluence.status",
+          "value": "internally judged 'june is unlikely'; public messaging deliberately unchanged",
+          "scope": null,
+          "as_of": "2026-04-15",
+          "reliability": 1,
+          "note": "RELIABILITY TRAP: this is chat-tier (1) \u2014 it corroborates the staleness story but must NOT outrank the interview/official-tier confluence assertions; resolve() floors it"
+        }
+      ],
+      "must_not_emit": [
+        "any assertion about an F1 race, Verstappen, lap 41, or a P7 overtake (pure social chatter \u2014 T12)",
+        "any assertion that the GA date IS end of June (the message says the public framing is kept, not that June is true)"
+      ]
+    }
+  ],
+  "_enforcement": "Hard gate (code-checked, not LLM-judged): attributes.nonconformant([a.attribute for a in emitted]) must be []. Every emitted attribute is a controlled-vocab key OR an explicit new_attribute:<slug> flag \u2014 an unflagged synonym silently disables resolve()'s grouping. The daniel_tan_confluence case exercises both paths (known confluence.ga_date/status + the new_attribute:migration.mismatch_rate escape hatch)."
+}

@@ -1,0 +1,200 @@
+{
+  "_note": "Structural fixture for ontology.upsert/resolve (adopted from the CTO bundle, aligned: attributes mapped to pipeline/attributes.py namespace; the fictional 'mrr' conflict replaced with a real same-scope revenue conflict). Values are SYNTHETIC \u2014 tests the MECHANICS, which are value-agnostic. ids 'RECOMPUTE' must be regenerated via ontology.assertion_id(subject, attribute, scope, source) and asserted stable.",
+  "groups": {
+    "scope_coexist": {
+      "_expect": "Same subject+attribute, DIFFERENT scope -> both stay live, NO dissent (the 'both true' NPS case, T2).",
+      "assertions": [
+        {
+          "id": "a_nps_seaent",
+          "subject": "helixpay",
+          "attribute": "nps",
+          "value": "62",
+          "scope": "sea_enterprise",
+          "as_of": "2026-04-21",
+          "source": {
+            "artifact_id": "weekly-review-2026-04-21",
+            "start": 0,
+            "end": 40
+          },
+          "reliability": 3,
+          "confidence": "high",
+          "supersedes": [],
+          "live": true
+        },
+        {
+          "id": "a_nps_agg",
+          "subject": "helixpay",
+          "attribute": "nps",
+          "value": "47",
+          "scope": "aggregate",
+          "as_of": "2026-04-21",
+          "source": {
+            "artifact_id": "weekly-review-2026-04-21",
+            "start": 120,
+            "end": 160
+          },
+          "reliability": 3,
+          "confidence": "high",
+          "supersedes": [],
+          "live": true
+        }
+      ]
+    },
+    "scope_conflict_tiebreak": {
+      "_expect": "Same subject+attribute+scope, DIFFERING values -> real conflict. Keep highest (reliability, then recency) live; emit Dissent naming both. board(4) outranks official(3). (No MRR exists in the corpus; this uses revenue.quarter_actual as the real same-scope attribute.)",
+      "assertions": [
+        {
+          "id": "a_rev_board",
+          "subject": "helixpay",
+          "attribute": "revenue.quarter_actual",
+          "value": "PLACEHOLDER_REV_BOARD",
+          "scope": "q1_2026",
+          "as_of": "2026-04-22",
+          "source": {
+            "artifact_id": "board-update-2026-04-22",
+            "start": 200,
+            "end": 240
+          },
+          "reliability": 4,
+          "confidence": "high",
+          "supersedes": [],
+          "live": true
+        },
+        {
+          "id": "a_rev_weekly",
+          "subject": "helixpay",
+          "attribute": "revenue.quarter_actual",
+          "value": "PLACEHOLDER_REV_WEEKLY",
+          "scope": "q1_2026",
+          "as_of": "2026-04-21",
+          "source": {
+            "artifact_id": "weekly-review-2026-04-21",
+            "start": 80,
+            "end": 110
+          },
+          "reliability": 3,
+          "confidence": "medium",
+          "supersedes": [],
+          "live": true
+        }
+      ]
+    },
+    "recency_supersession": {
+      "_expect": "Same subject+attribute+scope, SAME tier, newer as_of supersedes older -> older.live=False, newer.supersedes contains older.id (Confluence June->Sep, T1).",
+      "assertions": [
+        {
+          "id": "a_conf_june",
+          "subject": "confluence",
+          "attribute": "confluence.ga_date",
+          "value": "2026-06-30",
+          "scope": null,
+          "as_of": "2026-04-15",
+          "source": {
+            "artifact_id": "all-hands-2026-04-15",
+            "start": 300,
+            "end": 330
+          },
+          "reliability": 3,
+          "confidence": "high",
+          "supersedes": [],
+          "live": true
+        },
+        {
+          "id": "a_conf_sep",
+          "subject": "confluence",
+          "attribute": "confluence.ga_date",
+          "value": "2026-09-30",
+          "scope": null,
+          "as_of": "2026-04-21",
+          "source": {
+            "artifact_id": "weekly-review-2026-04-21",
+            "start": 200,
+            "end": 235
+          },
+          "reliability": 3,
+          "confidence": "high",
+          "supersedes": [],
+          "live": true
+        }
+      ]
+    },
+    "idempotent_reingest": {
+      "_expect": "Re-deriving the SAME (subject, attribute, scope, source) yields the SAME id -> upsert replaces in place, len==1, no duplicate.",
+      "assertions": [
+        {
+          "id": "RECOMPUTE",
+          "subject": "helixpay",
+          "attribute": "net_new_merchants",
+          "value": "412",
+          "scope": "q1_2026",
+          "as_of": "2026-04-22",
+          "source": {
+            "artifact_id": "board-update-2026-04-22",
+            "start": 10,
+            "end": 30
+          },
+          "reliability": 4,
+          "confidence": "high",
+          "supersedes": [],
+          "live": true
+        },
+        {
+          "id": "RECOMPUTE",
+          "subject": "helixpay",
+          "attribute": "net_new_merchants",
+          "value": "412",
+          "scope": "q1_2026",
+          "as_of": "2026-04-22",
+          "source": {
+            "artifact_id": "board-update-2026-04-22",
+            "start": 10,
+            "end": 30
+          },
+          "reliability": 4,
+          "confidence": "high",
+          "supersedes": [],
+          "live": true
+        }
+      ]
+    },
+    "reliability_noise_floor": {
+      "_expect": "A chat-tier 'fact' must NOT override an official one; pure noise must never become an assertion (T12). resolve() ranks chat(1) below all else if one slips through.",
+      "assertions": [
+        {
+          "id": "a_rev_official",
+          "subject": "helixpay",
+          "attribute": "revenue.quarter_actual",
+          "value": "PLACEHOLDER_REAL",
+          "scope": "q1_2026",
+          "as_of": "2026-04-21",
+          "source": {
+            "artifact_id": "weekly-review-2026-04-21",
+            "start": 5,
+            "end": 25
+          },
+          "reliability": 3,
+          "confidence": "high",
+          "supersedes": [],
+          "live": true
+        },
+        {
+          "id": "a_rev_chat",
+          "subject": "helixpay",
+          "attribute": "revenue.quarter_actual",
+          "value": "PLACEHOLDER_SLACK_JOKE",
+          "scope": "q1_2026",
+          "as_of": "2026-04-20",
+          "source": {
+            "artifact_id": "chat/sales-floor-april",
+            "start": 900,
+            "end": 930
+          },
+          "reliability": 1,
+          "confidence": "low",
+          "supersedes": [],
+          "live": true
+        }
+      ]
+    }
+  }
+}
