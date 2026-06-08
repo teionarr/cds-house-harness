@@ -1,7 +1,7 @@
 # Pinned to 3.12 to match pyproject (requires-python >=3.12, target py312), pyright,
 # and CI — test/prod parity. Bump deliberately (and bump CI + pyproject together),
 # not via an unreviewed major Dependabot jump.
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
