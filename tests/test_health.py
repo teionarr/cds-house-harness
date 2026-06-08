@@ -74,16 +74,24 @@ def test_unowned_guardrail_flagged():
     assert unowned[0].where == "No PII in logs"
 
 
-def test_owner_pulled_from_guardrail_authority():
-    # The orphan/coverage gaps should carry the harness authority as owner.
+def test_owner_routed_by_topic_to_a_guardrail_authority():
+    # A conflict routes to the authority of an ON-TOPIC guardrail (not a blind catch-all).
     span = SourceSpan(artifact_id="a1", start=0, end=10)
     harness = _full_harness(
-        guardrails=[Guardrail(rule="No PII", authority="Security", sources=[span])],
-        targets=[],
+        guardrails=[
+            Guardrail(
+                rule="Revenue target revisions need CFO sign-off",
+                authority="Lim (CFO)",
+                sources=[span],
+            )
+        ],
     )
-    health = assess_harness(harness, [])
-    coverage = next(g for g in health.gaps if g.kind == GapKind.coverage_gap)
-    assert coverage.owner == "Security"
+    d = Dissent(
+        point="helixpay · revenue.quarter_actual @sea: disagree", sources_disagree=["a", "b"]
+    )
+    health = assess_harness(harness, [d])
+    conflict = next(g for g in health.gaps if g.kind == GapKind.unresolved_conflict)
+    assert conflict.owner == "Lim (CFO)"  # routed via the on-topic (revenue) guardrail
 
 
 def test_dissent_becomes_unresolved_conflict():

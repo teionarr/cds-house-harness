@@ -19,8 +19,10 @@ import os
 from pathlib import Path
 
 from house_harness.ingest.loaders import load_corpus
+from house_harness.pipeline import ontology
 from house_harness.pipeline import store as _store
 from house_harness.pipeline.harness import extract_harness, render_markdown
+from house_harness.pipeline.health import assess_harness
 from house_harness.schema import Assertion, HouseHarness
 
 logger = logging.getLogger(__name__)
@@ -61,10 +63,14 @@ def run_pipeline(corpus_dir: str = "data", out_dir: str = "out") -> dict:
         _store.save_manifest_entry(conn, p, _hash(p))
     conn.close()
 
+    # The harness mirror: surface conflicts/blind-spots IN the artifact, routed to owners.
+    _current, dissents = ontology.resolve(assertions)
+    hh = assess_harness(harness, dissents)
+
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     md_path = out / f"{harness.company.upper().replace(' ', '_')}.md"
-    md_path.write_text(render_markdown(harness))
+    md_path.write_text(render_markdown(harness, hh))
     graph_path = out / "graph.json"
     graph_path.write_text(harness.taxonomy.model_dump_json(indent=2))
 

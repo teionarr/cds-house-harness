@@ -66,9 +66,20 @@ _TEMPORAL_SCOPE = re.compile(
 # a specific entity -> an entity-centric read (all its facts).
 _COMPANY = {"helixpay", "the company", "company", "us", "we", "our company", ""}
 
-# A future/absent period in the question (the corpus is through Q1 2026). A specific
-# year >= 2027 is out of coverage -> abstain, never broaden to the current value.
-_FUTURE_YEAR = re.compile(r"\b(202[7-9]|20[3-9]\d)\b")
+_YEAR = re.compile(r"\b(20\d\d)\b")
+
+
+def _query_years(query: str) -> list[int]:
+    return [int(y) for y in _YEAR.findall(query)]
+
+
+def _corpus_horizon(store: dict[str, Assertion]) -> int:
+    """The latest year the corpus actually covers — DERIVED from the data, not
+    hardcoded. A question about a year beyond this is out of coverage (abstain),
+    never broadened into the current value. Generalizes to any corpus/date."""
+    years = [int(a.as_of[:4]) for a in store.values() if a.as_of and a.as_of[:4].isdigit()]
+    return max(years) if years else 9999
+
 
 # Comparison/disambiguation questions ("is X the same as / related to Y?").
 _COMPARISON = re.compile(
@@ -321,9 +332,9 @@ def answer(query: str, harness: HouseHarness, store: dict[str, Assertion]) -> Tr
     Resolve the question, read the resolved ontology slice, synthesize over it.
     Empty in-namespace result -> honest abstain (coverage gap + escalate). The raw
     `_fallback` is reached only for genuinely out-of-namespace questions."""
-    # A future/absent period (>= 2027) is out of the corpus's coverage — never broaden
-    # a current value into it. Let the fallback confirm the gap and abstain + escalate.
-    if _FUTURE_YEAR.search(query):
+    # A future/absent period (beyond the corpus's own latest year) is out of coverage —
+    # never broaden a current value into it. Let the fallback confirm the gap + abstain.
+    if any(y > _corpus_horizon(store) for y in _query_years(query)):
         return _fallback(query, harness, store)
     res = resolve_question(query)
     # The anti-alias ledger is owned ontology data: for "who is X" / "is X the same as

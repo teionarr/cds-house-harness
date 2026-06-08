@@ -25,6 +25,7 @@ top. Staleness/conflict/scope are decided once here, at ingest, by the ontology.
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 
@@ -40,6 +41,7 @@ from house_harness.schema import (
     Confidence,
     GraphEdge,
     Guardrail,
+    HarnessHealth,
     HouseHarness,
     RelationKind,
     SourceSpan,
@@ -357,6 +359,33 @@ def _extract_one(art: Artifact) -> tuple[list[Assertion], list[GraphEdge], list[
     return assertions, edges, guardrails
 
 
+# A harness is the ESSENCE, not every constraint-shaped sentence — distill the
+# extracted guardrails to the load-bearing few.
+_MAX_GUARDRAILS = 20
+_POLICY_SIGNAL = re.compile(
+    r"\b(sign-?off|approv|require|must|policy|decision|only|cap\b|prohibit|authori[sz]|not to be|"
+    r"accountable|owns?|cannot|may not)\b",
+    re.IGNORECASE,
+)
+
+
+def _guardrail_score(g: Guardrail) -> int:
+    """Load-bearing-ness: a named authority + explicit policy language => a real
+    governing rule, not an incidental observation."""
+    return (2 if g.authority else 0) + (1 if _POLICY_SIGNAL.search(g.rule) else 0)
+
+
+def _distill_guardrails(guardrails: list[Guardrail]) -> list[Guardrail]:
+    """Dedup near-duplicates (same leading phrase), keep the best-scored per cluster,
+    rank, and cap — so the harness reads as the recognizable core, not a data dump."""
+    best: dict[str, Guardrail] = {}
+    for g in guardrails:
+        key = " ".join(re.findall(r"[a-z0-9]+", g.rule.lower())[:6])  # leading-phrase signature
+        if key not in best or _guardrail_score(g) > _guardrail_score(best[key]):
+            best[key] = g
+    return sorted(best.values(), key=_guardrail_score, reverse=True)[:_MAX_GUARDRAILS]
+
+
 def extract_harness(
     company: str, artifacts: Iterable[Artifact]
 ) -> tuple[HouseHarness, dict[str, Assertion]]:
@@ -396,19 +425,33 @@ def extract_harness(
         charter=_distill_charter(artifacts),
         taxonomy=_build_graph(edges),
         targets=_derive_targets(current),
-        guardrails=guardrails,
+        guardrails=_distill_guardrails(guardrails),
         playbooks=[],
     )
     return harness, store
 
 
-def render_markdown(harness: HouseHarness) -> str:
+def render_markdown(harness: HouseHarness, health: HarnessHealth | None = None) -> str:
     """Render the House Harness to `<COMPANY>.md` — the AI-native artifact a person
     or agent reads to operate the company. Pure projection of the typed harness;
     every target/guardrail carries its source span (provenance is non-negotiable —
-    an unsourced line should never have reached the harness)."""
+    an unsourced line should never have reached the harness). When `health` is given,
+    a "Needs Clarification" mirror leads: the conflicts, unowned items, and gaps the
+    company should resolve — the differentiating output, not a data dump."""
     h = harness
     lines: list[str] = [f"# {h.company} — House Harness", ""]
+
+    if health and health.gaps:
+        lines += [
+            "## ⚠️ Needs Clarification — the mirror",
+            "",
+            f"_{health.summary}. What the engine sees that the company should resolve:_",
+            "",
+        ]
+        for g in sorted(health.gaps, key=lambda x: -x.severity)[:12]:
+            owner = f" → **{g.owner}**" if g.owner else ""
+            lines.append(f"- **[{g.kind.value}]** {g.where}{owner}  \n  _{g.suggested_action}_")
+        lines.append("")
 
     lines += ["## Charter", "", h.charter.strip() or "_(not yet distilled)_", ""]
 

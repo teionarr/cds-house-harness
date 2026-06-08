@@ -10,13 +10,52 @@ not an LLM opinion. Runs once after extraction. Upgrades the blind-spots map
 
 from __future__ import annotations
 
+import re
+
 from house_harness.schema import (
     Dissent,
     GapKind,
     HarnessGap,
     HarnessHealth,
     HouseHarness,
+    RelationKind,
 )
+
+# Domain -> the function accountable for it, so a conflict/gap routes to the RIGHT
+# owner instead of a single catch-all. Tried only after the org graph + guardrail
+# authorities; a generic area beats a misleading "Board of Directors" on everything.
+_DOMAIN_OWNER: list[tuple[str, str]] = [
+    (r"revenue|ebitda|runway|burn|arr|margin|cash|forecast|target", "Finance (CFO)"),
+    (r"\bnps\b|churn|csat|retention|loyalty", "Customer Success"),
+    (r"hiring|headcount|people|recruit|backfill", "People / HR"),
+    (
+        r"confluence|migration|platform|reconcil|schema|attach|\btap\b|bug|engineering",
+        "Engineering (CTO)",
+    ),
+    (
+        r"pipeline|crm|discount|pricing|sales|hubspot|pipedrive|merchant|quota",
+        "Revenue / Sales (CRO)",
+    ),
+]
+
+
+def _owner_for(text: str, harness: HouseHarness) -> str | None:
+    """Route a gap to an accountable owner: an explicit `owns` edge first, then a
+    guardrail authority on the same topic, then the domain function — never a blind
+    default. Returns None rather than a misleading owner when nothing matches."""
+    t = text.lower()
+    toks = set(re.findall(r"[a-z]{4,}", t))
+    for e in harness.taxonomy.edges:  # explicit ownership of the area (e.g. owns nps)
+        if e.relation is RelationKind.owns and re.search(rf"\b{re.escape(e.dst.lower())}\b", t):
+            return e.src
+    for g in harness.guardrails:
+        if g.authority and toks & set(re.findall(r"[a-z]{4,}", g.rule.lower())):
+            return g.authority
+    for pattern, owner in _DOMAIN_OWNER:
+        if re.search(pattern, t):
+            return owner
+    return None
+
 
 # gap kind -> templated quick-win phrasing (deterministic; an LLM may polish copy).
 ACTIONS: dict[GapKind, str] = {
@@ -57,9 +96,6 @@ def assess_harness(harness: HouseHarness, dissent: list[Dissent]) -> HarnessHeal
 
     gaps: list[HarnessGap] = []
 
-    # A default owner to suggest where the harness names an authority anywhere.
-    default_owner = next((g.authority for g in harness.guardrails if g.authority), None)
-
     # 1. missing_section: an expected element is empty/thin.
     for section in EXPECTED_SECTIONS:
         if not _populated(section):
@@ -70,7 +106,7 @@ def assess_harness(harness: HouseHarness, dissent: list[Dissent]) -> HarnessHeal
                     detail=f"{section} is empty or too thin to rely on.",
                     severity=5 if section == "charter" else 4,
                     suggested_action=ACTIONS[GapKind.missing_section].format(where=section),
-                    owner=default_owner,
+                    owner=_owner_for(section, harness),
                 )
             )
 
@@ -88,9 +124,10 @@ def assess_harness(harness: HouseHarness, dissent: list[Dissent]) -> HarnessHeal
                 )
             )
 
-    # 3. unresolved_conflict: one gap per dissent signal.
+    # 3. unresolved_conflict: one gap per dissent signal. `where` = the clean
+    # subject·attribute (drop the verbose "sources disagree (...)" tail).
     for d in dissent:
-        where = d.point if len(d.point) <= 80 else d.point[:77] + "..."
+        where = d.point.split(":")[0].strip() or d.point[:60]
         gaps.append(
             HarnessGap(
                 kind=GapKind.unresolved_conflict,
@@ -98,7 +135,7 @@ def assess_harness(harness: HouseHarness, dissent: list[Dissent]) -> HarnessHeal
                 detail=f"Sources disagree: {', '.join(d.sources_disagree)}.",
                 severity=4,
                 suggested_action=ACTIONS[GapKind.unresolved_conflict].format(where=where),
-                owner=default_owner,
+                owner=_owner_for(d.point, harness),
             )
         )
 
@@ -111,7 +148,7 @@ def assess_harness(harness: HouseHarness, dissent: list[Dissent]) -> HarnessHeal
                 detail="No targets are defined for the company.",
                 severity=3,
                 suggested_action=ACTIONS[GapKind.coverage_gap].format(where="targets"),
-                owner=default_owner,
+                owner=_owner_for("targets", harness),
             )
         )
 
@@ -129,7 +166,7 @@ def assess_harness(harness: HouseHarness, dissent: list[Dissent]) -> HarnessHeal
                         detail="Referenced by an edge but never defined as a node.",
                         severity=2,
                         suggested_action=ACTIONS[GapKind.orphan].format(where=node),
-                        owner=default_owner,
+                        owner=None,
                     )
                 )
 
