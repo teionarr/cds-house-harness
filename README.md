@@ -85,3 +85,11 @@ Built with **LangChain** `init_chat_model` behind a one-line model seam (default
 `anthropic:claude-sonnet-4-6`); the store is **SQLite**, persisted on the deploy
 volume. The owned layer is the ontology, the harness, and the evals — the model is
 swappable config.
+
+> **Note on the evals.** The suite is deliberately broad — 30 cases across every trap
+> class, each scored against a *fair* full-corpus baseline as well as the harness. It is
+> thorough but **not optimized for speed or cost**: cases run sequentially and the
+> baseline pushes the whole corpus (~55K tokens) through the model on every case, so a
+> full run takes ~10–20 min **and spends real API credits each time**. Speeding it up
+> (parallel cases) and cutting the spend (cached/subsetted baseline) are deferred — see
+> [`DEVELOPMENT.md`](./DEVELOPMENT.md). Latest results live in `evals/benchmark.json`.

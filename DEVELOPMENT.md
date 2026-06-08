@@ -114,6 +114,12 @@ These have types/seams in the codebase and are intended next steps — see `SOLU
   outgrows the context budget.
 - **Self-correcting feedback loop** (`schema.Feedback`) — correction → new source + gold
   case + re-extract. Designed, not wired.
+- **Eval speed + cost** (`evals/harness.py`) — the case loop runs sequentially and the
+  *fair* baseline pushes the whole corpus (~55K tokens) through the model on every case,
+  so a full 30-case run is ~10–20 min **and spends substantial API credits each time**.
+  Levers: parallelize the case loop (bounded workers); cut the baseline spend via a
+  prompt-cached corpus prefix and/or a smaller default subset. Deferred — coverage over
+  speed/cost for now; the suite is broad on purpose.
 
 ## Conventions
 

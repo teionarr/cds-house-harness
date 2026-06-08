@@ -1,27 +1,27 @@
 {
   "n": 30,
   "with_harness": {
-    "pass_rate": 0.733,
-    "passed": 22,
-    "input_tokens": 899909,
-    "output_tokens": 14662,
-    "cost_usd": 2.758,
-    "avg_tokens_per_query": 30486,
-    "avg_latency_ms": 11322
+    "pass_rate": 0.867,
+    "passed": 26,
+    "input_tokens": 781620,
+    "output_tokens": 14922,
+    "cost_usd": 2.5687,
+    "avg_tokens_per_query": 26551,
+    "avg_latency_ms": 10820
   },
   "without_harness": {
     "pass_rate": 0.833,
     "passed": 25,
-    "input_tokens": 1814299,
-    "output_tokens": 15119,
-    "cost_usd": 5.508,
-    "avg_tokens_per_query": 60981,
-    "avg_latency_ms": 12439
+    "input_tokens": 1809794,
+    "output_tokens": 15578,
+    "cost_usd": 5.6631,
+    "avg_tokens_per_query": 60846,
+    "avg_latency_ms": 11479
   },
   "delta": {
-    "pass_rate": -0.1
+    "pass_rate": 0.034
   },
-  "cost_ratio_baseline_over_harness": 2.0,
+  "cost_ratio_baseline_over_harness": 2.2,
   "uplift_canary_split": false,
   "errors": 0,
   "cases": [
@@ -40,8 +40,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 2970,
-        "without": 60584
+        "with": 3365,
+        "without": 60828
       }
     },
     {
@@ -59,8 +59,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 3255,
-        "without": 60756
+        "with": 3686,
+        "without": 60836
       }
     },
     {
@@ -78,8 +78,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 3050,
-        "without": 60509
+        "with": 3150,
+        "without": 60507
       }
     },
     {
@@ -97,8 +97,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 61984,
-        "without": 61984
+        "with": 62030,
+        "without": 62030
       }
     },
     {
@@ -116,8 +116,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 2717,
-        "without": 60296
+        "with": 2893,
+        "without": 60333
       }
     },
     {
@@ -135,16 +135,16 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 3569,
-        "without": 60488
+        "with": 4171,
+        "without": 60474
       }
     },
     {
       "id": "brazil-pipeline",
-      "answer_path": "fallback",
+      "answer_path": "ontology",
       "status": "answered",
       "with_harness": {
-        "passed": true,
+        "passed": false,
         "mechanical_failures": [],
         "graded": "deterministic"
       },
@@ -154,8 +154,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 62507,
-        "without": 62507
+        "with": 2684,
+        "without": 60859
       }
     },
     {
@@ -173,8 +173,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 63174,
-        "without": 63174
+        "with": 63128,
+        "without": 63128
       }
     },
     {
@@ -192,8 +192,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 61584,
-        "without": 61584
+        "with": 61606,
+        "without": 61606
       }
     },
     {
@@ -211,8 +211,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 62183,
-        "without": 62183
+        "with": 62380,
+        "without": 62380
       }
     },
     {
@@ -220,7 +220,7 @@
       "answer_path": "ontology",
       "status": "answered",
       "with_harness": {
-        "passed": true,
+        "passed": false,
         "mechanical_failures": [],
         "graded": "deterministic"
       },
@@ -230,8 +230,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 3483,
-        "without": 60484
+        "with": 3990,
+        "without": 60562
       }
     },
     {
@@ -249,8 +249,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 61502,
-        "without": 60043
+        "with": 61457,
+        "without": 60009
       }
     },
     {
@@ -268,8 +268,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 61863,
-        "without": 61863
+        "with": 61890,
+        "without": 61890
       }
     },
     {
@@ -277,7 +277,7 @@
       "answer_path": "ontology",
       "status": "answered",
       "with_harness": {
-        "passed": false,
+        "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
       },
@@ -287,8 +287,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 2740,
-        "without": 60214
+        "with": 2908,
+        "without": 60198
       }
     },
     {
@@ -296,7 +296,7 @@
       "answer_path": "ontology",
       "status": "answered",
       "with_harness": {
-        "passed": false,
+        "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
       },
@@ -306,13 +306,13 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 3098,
-        "without": 60128
+        "with": 2863,
+        "without": 60133
       }
     },
     {
       "id": "nps-sea-smb",
-      "answer_path": "fallback",
+      "answer_path": "ontology",
       "status": "answered",
       "with_harness": {
         "passed": true,
@@ -325,13 +325,13 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 61673,
-        "without": 61673
+        "with": 2626,
+        "without": 60217
       }
     },
     {
       "id": "nps-brasil-smb",
-      "answer_path": "fallback",
+      "answer_path": "ontology",
       "status": "answered",
       "with_harness": {
         "passed": true,
@@ -344,8 +344,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 61784,
-        "without": 61784
+        "with": 2843,
+        "without": 60280
       }
     },
     {
@@ -363,8 +363,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 2641,
-        "without": 60121
+        "with": 2743,
+        "without": 60127
       }
     },
     {
@@ -382,8 +382,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 2489,
-        "without": 60166
+        "with": 2557,
+        "without": 60313
       }
     },
     {
@@ -401,8 +401,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 2548,
-        "without": 60160
+        "with": 2738,
+        "without": 60110
       }
     },
     {
@@ -410,7 +410,7 @@
       "answer_path": "ontology",
       "status": "answered",
       "with_harness": {
-        "passed": false,
+        "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
       },
@@ -420,8 +420,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 3330,
-        "without": 60036
+        "with": 2464,
+        "without": 60068
       }
     },
     {
@@ -429,7 +429,7 @@
       "answer_path": "ontology",
       "status": "answered",
       "with_harness": {
-        "passed": false,
+        "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
       },
@@ -439,13 +439,13 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 2439,
-        "without": 60182
+        "with": 2482,
+        "without": 60208
       }
     },
     {
       "id": "two-aarons",
-      "answer_path": "ontology",
+      "answer_path": "fallback",
       "status": "answered",
       "with_harness": {
         "passed": true,
@@ -458,8 +458,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 2682,
-        "without": 60248
+        "with": 61665,
+        "without": 61665
       }
     },
     {
@@ -467,7 +467,7 @@
       "answer_path": "ontology",
       "status": "answered",
       "with_harness": {
-        "passed": false,
+        "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
       },
@@ -477,8 +477,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 2835,
-        "without": 60306
+        "with": 3548,
+        "without": 60329
       }
     },
     {
@@ -496,8 +496,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 61809,
-        "without": 61809
+        "with": 61760,
+        "without": 61760
       }
     },
     {
@@ -515,13 +515,13 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 61656,
-        "without": 61656
+        "with": 61644,
+        "without": 61644
       }
     },
     {
       "id": "crm-brasil",
-      "answer_path": "fallback",
+      "answer_path": "ontology",
       "status": "answered",
       "with_harness": {
         "passed": true,
@@ -534,8 +534,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 61799,
-        "without": 61799
+        "with": 3122,
+        "without": 60278
       }
     },
     {
@@ -553,8 +553,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 62503,
-        "without": 62503
+        "with": 62464,
+        "without": 62464
       }
     },
     {
@@ -572,16 +572,16 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 61595,
-        "without": 60180
+        "with": 61614,
+        "without": 60128
       }
     },
     {
       "id": "forecast-2027",
-      "answer_path": "ontology",
-      "status": "answered",
+      "answer_path": "fallback",
+      "status": "abstained",
       "with_harness": {
-        "passed": false,
+        "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
       },
@@ -591,8 +591,8 @@
         "graded": "deterministic"
       },
       "tokens": {
-        "with": 3109,
-        "without": 59998
+        "with": 60071,
+        "without": 60008
       }
     }
   ]

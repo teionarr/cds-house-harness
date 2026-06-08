@@ -25,7 +25,9 @@ top. Staleness/conflict/scope are decided once here, at ingest, by the ontology.
 from __future__ import annotations
 
 import logging
+import os
 import re
+from collections import defaultdict
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 
@@ -121,6 +123,44 @@ def _canonicalize(subject: str) -> str:
 def _is_non_person(subject: str) -> bool:
     """Commit/automation identities (`noise`, `Nikita@local`, …) are never entities."""
     return subject.strip().lower() in _NON_PERSON
+
+
+def _pick_subject_rep(forms: set[str]) -> str:
+    """The canonical surface for a group of casing/slug variants: a roster-known person
+    wins; otherwise the best-cased EXISTING form (most capitals, words over slugs, then
+    longer) — never inventing casing (so 'HelixPay Tap'/'POS' keep their real casing)."""
+    for f in forms:
+        c = _REGISTRY.canonicalize(re.sub(r"[._]+", " ", f).strip())
+        if c in _REGISTRY.canonical:
+            return c
+    return max(
+        forms,
+        key=lambda f: (
+            sum(ch.isupper() for ch in f),
+            int(" " in f) - int("_" in f or "." in f),
+            len(f),
+        ),
+    )
+
+
+def _subject_canon_map(surfaces: set[str]) -> dict[str, str]:
+    """Map each entity surface to its group representative, collapsing casing/slug
+    fragments of ONE entity (people and products/accounts alike). The group key
+    normalizes separators + case, so 'daniel_tan'/'Daniel Tan' merge but 'Maria Silva'/
+    'Maria Santos' (different keys) never do — the anti-alias discipline holds. Only
+    surfaces whose representative differs are mapped."""
+    groups: dict[str, set[str]] = defaultdict(set)
+    for s in surfaces:
+        key = re.sub(r"[\s._-]+", " ", s).strip().lower()
+        if key:
+            groups[key].add(s)
+    out: dict[str, str] = {}
+    for forms in groups.values():
+        rep = _pick_subject_rep(forms)
+        for f in forms:
+            if f != rep:
+                out[f] = rep
+    return out
 
 
 def _locate_span(text: str, quote: str) -> tuple[int, int]:
@@ -420,34 +460,58 @@ def extract_harness(
     roster = " ".join(a.text for a in artifacts if "org-chart" in a.id and "image" not in a.id)
     _REGISTRY = names.build_registry(roster)
 
-    # Induce + install THIS corpus's domain attribute namespace, so resolve()'s
-    # grouping (and contradiction detection) fires on any corpus, not just the
-    # bundled one. Kernel stays; an induction miss falls back to the seed/pinned vocab
-    # and is still caught by the new_attribute: escape hatch. Done before the pool so
-    # every per-doc extraction is shown the same namespace.
-    signal = [a.text for a in artifacts if a.metadata.get("source_type") in _VOCAB_SIGNAL_TYPES]
-    induced = vocab.induce(signal or [a.text for a in artifacts])
-    if induced:
-        attributes.install_vocab(induced)
+    # The DOMAIN attribute namespace. A curated vocab (attributes._SEED_DOMAIN) encodes
+    # the scope-based design the resolution relies on — e.g. one `nps` attribute with a
+    # `scope` qualifier (aggregate vs segment), NOT separate keys — so it is
+    # authoritative by default and induction must NEVER clobber it. Induction is the
+    # GENERALITY path: it runs only for a corpus with no curated vocab, or when explicitly
+    # opted in (HOUSE_HARNESS_INDUCE_VOCAB=1). Either way the `new_attribute:` escape hatch
+    # still catches whatever the active vocab misses. Done before the pool so every per-doc
+    # extraction is shown the same namespace.
+    if os.environ.get("HOUSE_HARNESS_INDUCE_VOCAB") == "1" or not attributes.domain_vocab():
+        signal = [a.text for a in artifacts if a.metadata.get("source_type") in _VOCAB_SIGNAL_TYPES]
+        induced = vocab.induce(signal or [a.text for a in artifacts])
+        if induced:
+            attributes.install_vocab(induced)
 
     store: dict[str, Assertion] = {}
     edges: list[GraphEdge] = []
     guardrails: list[Guardrail] = []
     seen_rules: set[str] = set()
+    extracted: list[Assertion] = []
 
     workers = min(8, max(1, len(artifacts)))
     with ThreadPoolExecutor(max_workers=workers) as pool:
         for i, (doc_assertions, doc_edges, doc_guardrails) in enumerate(
             pool.map(_extract_one, artifacts), start=1
         ):
-            for a in doc_assertions:  # serialized mutation (store is not thread-safe)
-                ontology.upsert(store, a)
+            extracted.extend(doc_assertions)
             edges.extend(doc_edges)
             for g in doc_guardrails:
                 if g.rule not in seen_rules:
                     seen_rules.add(g.rule)
                     guardrails.append(g)
             logger.info("extracted %d/%d documents", i, len(artifacts))
+
+    # Global entity canonicalization (needs the whole-corpus view): collapse casing/slug
+    # fragments of one entity to a single surface across subjects, relation values, and
+    # graph edges, then upsert. Without this, 'daniel_tan'/'Daniel Tan'/'daniel.tan'
+    # fragment the graph and break entity lookup.
+    rel_attrs = {r.value for r in _RELATION_ASSERTION_KINDS}
+    surfaces = {a.subject for a in extracted}
+    surfaces |= {a.value for a in extracted if a.attribute in rel_attrs}
+    surfaces |= {e.src for e in edges} | {e.dst for e in edges}
+    canon = _subject_canon_map(surfaces)
+    if canon:
+        logger.info("canonicalized %d entity surface fragments", len(canon))
+    for a in extracted:  # serialized mutation (store is not thread-safe)
+        a.subject = canon.get(a.subject, a.subject)
+        if a.attribute in rel_attrs:
+            a.value = canon.get(a.value, a.value)
+        a.id = ontology.assertion_id(a.subject, a.attribute, a.scope, a.source.artifact_id)
+        ontology.upsert(store, a)
+    for e in edges:
+        e.src, e.dst = canon.get(e.src, e.src), canon.get(e.dst, e.dst)
 
     current, _dissent = ontology.resolve(store)
     harness = HouseHarness(

@@ -137,14 +137,24 @@ hidden:
 - **Confidence is honest, not calibrated.** It tracks coverage + source tier + dissent, so
   it moves in the right direction, but it isn't tuned against a labeled set and isn't a
   per-answer guarantee.
+- **Answer completeness on some multi-fact questions.** For *"can I trust the Brazil
+  HubSpot pipeline?"* the ontology resolves the migration-status facts (Brazil not yet
+  migrated, 0%) and correctly says don't trust it — but doesn't always name the system of
+  record (Pipedrive) that a whole-corpus read surfaces. The fact is in the ontology
+  (`crm.system_of_record`); broadening the resolved slice to pull *related* facts for
+  "can I trust X" questions is deferred query-path tuning. (In the uplift eval this shows
+  as the one case where the raw baseline edges the harness — named, not hidden.)
 
 **Fundamental scope calls** (the most interesting ones to name):
-- **The edge is scale-conditional.** The ontology's wins — correctness under
-  contradiction, flat per-query cost, recording-time staleness — bite hardest on a corpus
-  large enough that reading it raw *fails*. At this snapshot's size a strong "read
-  everything" baseline ties on the visible metrics; the advantages live in a regime this
-  corpus doesn't reach. The architecture targets that regime; the demo can't enter it
-  without a larger, contradiction-dense corpus.
+- **The edge is scale-conditional — and the numbers say so plainly.** On the held-out set
+  the harness **ties** a fair full-corpus baseline (0.75 vs 0.75, **Δ = 0**); on the tuned
+  build set it edges ahead (Δ ≈ +0.03). The win that *does* show at this size is **cost —
+  2.2× fewer tokens/$** (26.5K vs 60.8K per query), with latency roughly flat. The
+  ontology's accuracy advantages — correctness under contradiction, recording-time
+  staleness — bite hardest on a corpus large enough that reading it raw *fails*; at ~54K
+  tokens the whole thing fits in context, so a "read everything" baseline is already
+  strong. The architecture targets the larger regime; this corpus can't enter it. We
+  report the tie rather than hide it.
 - **The edge is self-graded, and routing is tuned to expected phrasings.** Uplift is
   measured on our own eval set, and the deterministic hierarchy/contradiction routing is
   pattern-matched to anticipated wording. A blind, paraphrase-heavy held-out set plus
