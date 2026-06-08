@@ -108,5 +108,9 @@ These have types/seams in the codebase and are intended next steps — see `SOLU
 - **Grounded ≠ correct.** A citation proves a claim wasn't invented, not that it's true.
   Correctness lives in entailment verification and the evals, not in retrieval scores.
 - **Gates.** `make lint && make type && make test` before a commit; CI runs them plus
-  the eval gate (`.github/workflows/`). PRs are reviewed by Greptile (`greptile.json`).
-  Secrets via Doppler or `.env` (never committed).
+  the eval gate (`.github/workflows/`). Secrets via Doppler or `.env` (never committed).
+- **Branch flow.** `main` is protected: no force-push or deletion, and merges go through
+  a pull request with the required checks green — `quality` and `deploy-smoke` (and
+  `greptile` once a PR has run). Work on a branch, open a PR, let CI + Greptile
+  (`greptile.json` rules) review it, merge when green. The deploy job ships to Fly on
+  green `main`.
