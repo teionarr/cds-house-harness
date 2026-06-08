@@ -13,13 +13,15 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
-  # The runtime base image. Ignore MAJOR Python bumps — the interpreter version is a
-  # deliberate, coordinated change (Dockerfile + pyproject + CI together), not an
-  # unreviewed auto-merge (a major jump silently broke test/prod parity once).
+  # The runtime base image. Ignore MAJOR and MINOR Python bumps — the interpreter
+  # version is a deliberate, coordinated change (Dockerfile + pyproject + CI together),
+  # not an unreviewed auto-merge. Dependabot classifies 3.12->3.14 as MINOR, so major-
+  # only let that exact bump through and it silently broke test/prod parity once; pin it.
   - package-ecosystem: docker
     directory: "/"
     schedule:
       interval: weekly
     ignore:
       - dependency-name: "python"
-        update-types: ["version-update:semver-major"]
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
