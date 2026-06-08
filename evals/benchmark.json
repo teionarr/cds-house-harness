@@ -1,17 +1,17 @@
 {
   "n": 13,
   "with_harness": {
+    "pass_rate": 1.0,
+    "passed": 13
+  },
+  "without_harness": {
     "pass_rate": 0.923,
     "passed": 12
   },
-  "without_harness": {
-    "pass_rate": 0.692,
-    "passed": 9
-  },
   "delta": {
-    "pass_rate": 0.231
+    "pass_rate": 0.077
   },
-  "uplift_canary_split": true,
+  "uplift_canary_split": false,
   "errors": 0,
   "cases": [
     {
@@ -144,7 +144,7 @@
         "graded": "deterministic"
       },
       "without_harness": {
-        "passed": false,
+        "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
       }
@@ -154,12 +154,12 @@
       "answer_path": "fallback",
       "status": "answered",
       "with_harness": {
-        "passed": false,
+        "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
       },
       "without_harness": {
-        "passed": false,
+        "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
       }
@@ -174,7 +174,7 @@
         "graded": "deterministic"
       },
       "without_harness": {
-        "passed": false,
+        "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
       }

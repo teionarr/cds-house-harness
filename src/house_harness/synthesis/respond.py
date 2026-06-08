@@ -261,10 +261,14 @@ def answer(query: str, harness: HouseHarness, store: dict[str, Assertion]) -> Tr
     return _fallback(query, harness, store)
 
 
-# Whole-corpus budget for the raw path. The corpus (~55K tokens) fits; this is the
-# SAME budget the eval baseline uses, so the harness fallback is never weaker than
-# the baseline it is measured against (the "never worse than baseline" guarantee).
-RAW_CORPUS_CHARS = 80_000
+# Whole-corpus budget for the raw path. The snapshot is ~213K chars (~53K tokens),
+# which fits whole in the model's 200K-token context — so we load ALL of it (a smaller
+# cap silently truncated the interviews, starving both the fallback AND the eval
+# baseline of the docs they need). This is the SAME budget the eval baseline uses, so
+# the harness fallback is never weaker than the baseline (the "never worse" guarantee).
+# A corpus that outgrows this is the profiler's signal to switch to the Hybrid index
+# (the documented scale path) rather than truncate.
+RAW_CORPUS_CHARS = 400_000
 
 
 def raw_corpus_answer(query: str) -> _FallbackAnswer:
