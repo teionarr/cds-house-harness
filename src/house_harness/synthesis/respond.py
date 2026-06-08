@@ -27,7 +27,7 @@ import re
 from pydantic import BaseModel, Field
 
 from house_harness.config.structured import llm_json
-from house_harness.pipeline import attributes, ontology
+from house_harness.pipeline import aliases, attributes, ontology
 from house_harness.schema import (
     AnswerPath,
     Assertion,
@@ -44,6 +44,9 @@ logger = logging.getLogger(__name__)
 # to X", "who owns X") match the query subject against the assertion VALUE.
 _HIERARCHY_ATTRS = ("reports_to", "dotted_reports_to")
 _AUTHORITY_ATTRS = ("owns",)
+# Relational/descriptive attrs are about a PERSON; a segment word doesn't make the
+# company the subject for these (unlike a metric).
+_RELATIONAL_ATTRS = {"role", "reports_to", "dotted_reports_to", "owns", "location"}
 
 # KPI pairs surfaced together so "X versus target" answers with both numbers.
 _ATTR_PAIRS = {
@@ -62,6 +65,61 @@ _TEMPORAL_SCOPE = re.compile(
 # The company itself -> a metric question (attribute-filtered). Any other subject is
 # a specific entity -> an entity-centric read (all its facts).
 _COMPANY = {"helixpay", "the company", "company", "us", "we", "our company", ""}
+
+# A future/absent period in the question (the corpus is through Q1 2026). A specific
+# year >= 2027 is out of coverage -> abstain, never broaden to the current value.
+_FUTURE_YEAR = re.compile(r"\b(202[7-9]|20[3-9]\d)\b")
+
+# Comparison/disambiguation questions ("is X the same as / related to Y?").
+_COMPARISON = re.compile(
+    r"\b(same|related|different|distinct|vs\.?|versus|confus|mix(ed)? up)\b", re.IGNORECASE
+)
+
+# Segment/region scope isolation: if the question names one, pin it so the answer
+# surfaces THAT segment's number instead of dumping every scope. Most specific first;
+# word-boundary patterns so "SEA's" and "Brazilian" still match.
+_SEGMENT_SCOPES: list[tuple[str, str]] = [
+    ("brasil_enterprise", r"bra[sz]il\w*\s+enterprise"),
+    ("brasil_smb", r"bra[sz]il\w*\s+smb"),
+    ("sea_enterprise", r"\bsea\b\s+enterprise"),
+    ("sea_smb", r"\bsea\b\s+smb"),
+    ("brasil", r"\bbra[sz]il\w*\b"),
+    ("sea", r"\bsea\b|southeast asia"),
+    ("aggregate", r"\baggregate\b"),
+]
+
+
+def _segment_scope(query: str) -> str | None:
+    q = query.lower()
+    for scope, pattern in _SEGMENT_SCOPES:
+        if re.search(pattern, q):
+            return scope
+    return None
+
+
+def _anti_alias_claims(query: str) -> list[Claim]:
+    """Surface the verified anti-alias ledger — the ontology's trophy capability.
+    For a 'who is X' / 'is X the same as Y' question naming a confusable entity,
+    emit a sourced Claim stating the distinction (Maria Santos != Maria Silva,
+    Pedro Almeida != Sofia Almeida) so the answer asserts it rather than leaving the
+    over-merge to chance. This is what the raw baseline can only stumble into."""
+    q = query.lower()
+    out: list[Claim] = []
+    for x, y, why in aliases.ANTI_ALIASES:
+        xb, yb = x.split("(")[0].strip(), y.split("(")[0].strip()
+        # any token of either name present (e.g. "Pedro Almeida", "Maria", "Aisha")
+        names = {t for t in (xb.lower() + " " + yb.lower()).split() if len(t) > 2}
+        if any(re.search(rf"\b{re.escape(t)}\b", q) for t in names):
+            out.append(
+                Claim(
+                    text=f"{xb} and {yb} are DIFFERENT, distinct entities ({why}).",
+                    sources=["data-org-chart-md"],  # the verified entity registry
+                    # the alias ledger IS owned ontology data -> stable id, ontology-first
+                    assertion_id=ontology.assertion_id(xb, "distinct_from", None, yb),
+                    verified=None,
+                )
+            )
+    return out
 
 
 def _subject_matches(needle: str, subject: str) -> bool:
@@ -135,6 +193,24 @@ def resolve_question(query: str) -> QResolution:
     )
     if res.attribute and attributes.classify(res.attribute) == "violation":
         res.attribute = None  # the model guessed a synonym; treat as out-of-vocab
+    # Deterministic overrides the classifier is unreliable at:
+    # (a) pin the segment the question names, so the answer isolates THAT number; a
+    #     segment on a company METRIC means the subject is the company, not the region.
+    seg = _segment_scope(query)
+    if seg:
+        res.scope = seg
+        if res.attribute and res.attribute not in _RELATIONAL_ATTRS:
+            res.subject = "helixpay"
+    # (b) "who is the <role>?" is a reverse lookup over `role` (find the person).
+    m = re.search(
+        r"\bwho\b[^?]{0,40}?\b"
+        r"(ceo|cto|cfo|coo|cro|vp|chief|head of|general counsel|president|founder)\b",
+        query,
+        re.IGNORECASE,
+    )
+    if m:
+        res.intent, res.attribute, res.reverse = "identity", "role", True
+        res.subject, res.in_namespace = m.group(1).strip(), True
     return res
 
 
@@ -144,7 +220,12 @@ def _gather(store: dict[str, Assertion], res: QResolution) -> tuple[list[Asserti
     to X'); a fuzzy SUBJECT match for entity questions ('who is Maria' -> every
     Maria, kept distinct by the anti-alias ledger)."""
     if res.reverse and res.subject:
-        attrs = _HIERARCHY_ATTRS if res.intent == "hierarchy" else _AUTHORITY_ATTRS
+        if res.attribute == "role":  # "who is the CEO?" -> find the person whose role matches
+            attrs: tuple[str, ...] = ("role",)
+        elif res.intent == "hierarchy":
+            attrs = _HIERARCHY_ATTRS
+        else:
+            attrs = _AUTHORITY_ATTRS
         needle = res.subject.lower()
         live = [
             a
@@ -240,11 +321,21 @@ def answer(query: str, harness: HouseHarness, store: dict[str, Assertion]) -> Tr
     Resolve the question, read the resolved ontology slice, synthesize over it.
     Empty in-namespace result -> honest abstain (coverage gap + escalate). The raw
     `_fallback` is reached only for genuinely out-of-namespace questions."""
+    # A future/absent period (>= 2027) is out of the corpus's coverage — never broaden
+    # a current value into it. Let the fallback confirm the gap and abstain + escalate.
+    if _FUTURE_YEAR.search(query):
+        return _fallback(query, harness, store)
     res = resolve_question(query)
+    # The anti-alias ledger is owned ontology data: for "who is X" / "is X the same as
+    # Y" surface the verified distinction (Maria Santos != Maria Silva) instead of
+    # leaving over-merge to chance — the differentiator the raw baseline only stumbles into.
+    anti = (
+        _anti_alias_claims(query) if (res.intent == "entity" or _COMPARISON.search(query)) else []
+    )
     if res.in_namespace and res.intent != "out_of_namespace":
         assertions, dissent = _gather(store, res)
-        if assertions:
-            claims = claims_from_assertions(assertions)
+        claims = anti + claims_from_assertions(assertions)
+        if claims:
             return build_envelope(
                 answer=_compose_answer(query, claims, dissent),
                 claims=claims,
