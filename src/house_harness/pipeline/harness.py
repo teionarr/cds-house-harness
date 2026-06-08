@@ -13,7 +13,7 @@ flag for human review, not a guessed synonym. The extraction eval gates on this
 (zero unflagged violations) and is regression-tested against
 `tests/fixtures/extraction_golden.json`.
 
-Design (BUILD_PLAN §4.14): one structured LLM pass per document emits raw
+Design: one structured LLM pass per document emits raw
 assertions + relations + guardrails (the highest-variance step, so it goes
 through `llm_json` — validate + repair, never prose parsing). The deterministic
 layer then canonicalizes entities (alias ledger), drops namespace violations and

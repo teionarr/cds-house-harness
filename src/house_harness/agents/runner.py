@@ -1,4 +1,4 @@
-"""Agent runner — the single home for the hard caps named in CLAUDE.md.
+"""Agent runner — the single home for the hard step/timeout/cost caps.
 
 Every agent invocation goes through here so the step cap, per-call timeout, and
 cost-per-run cap are enforced in one chokepoint, not scattered across call

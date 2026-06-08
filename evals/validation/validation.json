@@ -1,6 +1,6 @@
 {
   "suite": "house-harness held-out validation (HelixPay) — VERIFIED",
-  "_note": "ACCEPTANCE set, authored separately and NOT used in the dev loop (VALIDATION.md E1). Paraphrased trap classes + abstain/reliability negatives. Verified against data/.",
+  "_note": "ACCEPTANCE set: authored separately, locked before tuning, NOT used in the dev loop (see DEVELOPMENT.md). Paraphrased trap classes + abstain/reliability negatives. Verified against data/.",
   "evals": [
     {
       "id": "v-confluence",

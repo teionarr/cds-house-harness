@@ -1,8 +1,7 @@
 """The integration contract between all worktrees.
 
-Change this file via its own PR before any code that depends on the change
-(see CLAUDE.md "Hard boundaries"). These types are the only coupling between
-ingest / synthesis / graph / evals tracks.
+Change this file deliberately — these types are the only coupling between the
+ingest / pipeline / synthesis / serve modules; no raw dicts cross those lines.
 """
 
 from __future__ import annotations

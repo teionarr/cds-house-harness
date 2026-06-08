@@ -17,7 +17,7 @@ test:
 eval:
 	uv run python -m evals.harness --suite structural provenance uplift --subset 20
 
-# Post-build acceptance gate (see VALIDATION.md): held-out functional + trust +
+# Post-build acceptance gate (see DEVELOPMENT.md): held-out functional + trust +
 # red-team + ops suites -> evals/validation/report.json. Blocking gate exits non-zero on fail.
 validate:
 	uv run python -m evals.harness --suite validation --heldout evals/validation --report evals/validation/report.json --gate

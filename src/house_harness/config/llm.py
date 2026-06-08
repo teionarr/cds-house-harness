@@ -1,6 +1,6 @@
 """The single seam where the model vendor lives.
 
-RULE (CLAUDE.md): no provider SDK is imported anywhere else in the codebase.
+RULE: no provider SDK is imported anywhere else in the codebase.
 Swapping providers is a one-line env change, not a refactor.
 
 Provider-leakage controls live here because this is the only place data leaves
