@@ -44,6 +44,18 @@ from house_harness.schema import AnswerPath, Confidence, Status, TrustEnvelope  
 # Approximate claude-sonnet-4-6 list prices ($/1M tokens); override via env if needed.
 _PRICE_IN, _PRICE_OUT, _PRICE_CACHE = 3.0, 15.0, 0.30
 
+# Hard wall-clock per case — the SDK's retry backoff can sleep past the request
+# timeout under heavy throttling, so bound it here (the orphaned call dies with the
+# process). Override via env.
+CASE_TIMEOUT_S = float(os.environ.get("HOUSE_HARNESS_EVAL_CASE_TIMEOUT", "150"))
+
+
+def _with_timeout(fn, *args, timeout: float):
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(fn, *args).result(timeout=timeout)
+
 
 def _cost_usd(u: dict) -> float:
     """Dollar cost of one usage aggregate (cached input billed at the cache rate)."""
@@ -198,11 +210,12 @@ def run(suite_path: Path, subset: int | None, report: Path | None, gate: bool) -
     canary_split = None
     errors = 0
     for case in cases:
-        # Per-case isolation: one API/transient error (rate limit, exhausted credits)
-        # records a failed case, never crashes the whole gate.
+        # Per-case isolation AND a hard wall-clock bound: one API error OR a hung call
+        # (rate-limit retry-backoff can sleep far past the request timeout) records a
+        # failed case and moves on, never blocking the whole gate for minutes.
         try:
             reset_usage()
-            env = _with_harness(case["prompt"])
+            env = _with_timeout(_with_harness, case["prompt"], timeout=CASE_TIMEOUT_S)
             wu = drain_usage()  # what the HARNESS actually spent on this query
             with_grade = _grade_case(case, _render_envelope(env), env)
             if env.answer_path is AnswerPath.fallback and env.status is Status.answered:
@@ -215,7 +228,8 @@ def run(suite_path: Path, subset: int | None, report: Path | None, gate: bool) -
                 bu = wu
             else:
                 reset_usage()
-                without_grade = _grade_case(case, _without_harness(case["prompt"]), None)
+                base = _with_timeout(_without_harness, case["prompt"], timeout=CASE_TIMEOUT_S)
+                without_grade = _grade_case(case, base, None)
                 bu = drain_usage()
             path, status = env.answer_path.value, env.status.value
         except Exception as exc:  # noqa: BLE001 — isolation is the point
