@@ -258,34 +258,45 @@ def run(
 ) -> None:
     """Start the MCP server.
 
-    - `stdio` (default): an agent spawns it as a LOCAL subprocess.
-    - `streamable-http` / `sse`: a NETWORKED server an agent adds by URL, e.g.
-      `claude mcp add --transport http house-harness https://<host>/mcp`. The same
-      app also serves GET /health (open) and POST /ask (token-gated)."""
+    - `stdio` (default): an agent spawns it as a LOCAL subprocess; ingest blocks.
+    - `streamable-http` / `sse`: a NETWORKED server an agent adds by URL. It binds and
+      serves GET /health IMMEDIATELY; ingest-on-boot runs in a BACKGROUND thread so a
+      slow first build never blocks the health check (a blocking on-boot extraction is
+      reaped mid-build by the platform). The MCP tools report 'ontology not built' until
+      the warm completes, then serve normally. The same app also serves POST /ask."""
     logger.info("tracing %s", "on" if _tracing.init_tracing() else "off (no LANGSMITH_API_KEY)")
-    if ingest_on_boot and _app.serve_mode().value != "mock":
+
+    def _warm() -> None:
+        if not ingest_on_boot or _app.serve_mode().value == "mock":
+            return
         from house_harness.pipeline.run import ingest_on_boot as _ingest
 
         corpus_dir = corpus or os.environ.get("HOUSE_HARNESS_CORPUS_DIR", "data")
         try:
             if _ingest(corpus_dir):
                 _app.reset_state()  # reload the freshly-built ontology
+                logger.info("ingest-on-boot complete; ontology loaded")
         except Exception:  # noqa: BLE001 — a failed boot-ingest must not stop the server
             logger.exception("ingest-on-boot failed; serving with whatever is in the store")
-    if transport != "stdio":  # networked: bind all interfaces on the container port
+
+    if transport == "stdio":
+        _warm()  # local spawn: block until ready (no health check to satisfy)
+    else:  # networked: serve /health immediately, warm the ontology in the background
+        import threading
+
         from mcp.server.transport_security import TransportSecuritySettings
 
+        threading.Thread(target=_warm, name="ingest-on-boot", daemon=True).start()
         mcp.settings.host = "0.0.0.0"  # noqa: S104 — container binds all interfaces
         mcp.settings.port = port or int(os.environ.get("APP_PORT", "8080"))
         # DNS-rebinding protection guards LOCALHOST servers from browser rebinding; the
-        # default allowlist is localhost-only and 403s a public host ("Invalid Host
-        # header"). This is a public-by-design URL reached directly by MCP clients, so
-        # that threat model does not apply — accept any Host/Origin.
+        # default allowlist is localhost-only and 403s a public host. This is a
+        # public-by-design URL reached directly by MCP clients, so accept any Host/Origin.
         mcp.settings.transport_security = TransportSecuritySettings(
             enable_dns_rebinding_protection=False
         )
         logger.info(
-            "MCP serving on :%d%s (mode=%s)",
+            "MCP serving on :%d%s (mode=%s); ontology warming in background",
             mcp.settings.port,
             mcp.settings.streamable_http_path,
             _app.serve_mode().value,
