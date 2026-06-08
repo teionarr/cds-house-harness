@@ -10,6 +10,15 @@ primary_region = "iad"
 [build]
   dockerfile = "Dockerfile"
 
+# 2GB is REQUIRED: the first-boot extraction holds the runtime (Python + LangChain +
+# the web server) plus 8 concurrent doc extractions and the 4 vision images in memory
+# at once — it OOMs at ~doc 40 on the 512MB default. After the DB is built and persists
+# on the volume, boots skip ingest and run lean, but the build needs the headroom.
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "2gb"
+
 [env]
   HOUSE_HARNESS_MODEL = "anthropic:claude-sonnet-4-6"
   DATABASE_URL = "sqlite:////data/house_harness.db"   # on the mounted volume
