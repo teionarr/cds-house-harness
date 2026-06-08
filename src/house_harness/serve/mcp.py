@@ -142,8 +142,17 @@ def run(
         except Exception:  # noqa: BLE001 — a failed boot-ingest must not stop the server
             logger.exception("ingest-on-boot failed; serving with whatever is in the store")
     if transport != "stdio":  # networked: bind all interfaces on the container port
+        from mcp.server.transport_security import TransportSecuritySettings
+
         mcp.settings.host = "0.0.0.0"  # noqa: S104 — container binds all interfaces
         mcp.settings.port = port or int(os.environ.get("APP_PORT", "8080"))
+        # DNS-rebinding protection guards LOCALHOST servers from browser rebinding; the
+        # default allowlist is localhost-only and 403s a public host ("Invalid Host
+        # header"). This is a public-by-design URL reached directly by MCP clients, so
+        # that threat model does not apply — accept any Host/Origin.
+        mcp.settings.transport_security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=False
+        )
         logger.info(
             "MCP serving on :%d%s (mode=%s)",
             mcp.settings.port,
