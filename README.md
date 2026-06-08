@@ -42,7 +42,7 @@ client (Claude Code, Claude Desktop, Cursor) with one command, no clone, no buil
 claude mcp add --transport http house-harness https://house-harness.fly.dev/mcp
 ```
 
-Then just ask the agent about the company — it calls four tools, each returning
+Then just ask the agent about the company — it calls these six tools, each returning
 structured data it can *act on*, not just read:
 
 | Tool | Returns |
@@ -51,11 +51,18 @@ structured data it can *act on*, not just read:
 | `get_harness()` | the distilled House Harness — charter, targets, guardrails/authorities, taxonomy |
 | `get_harness_health()` | the mirror — what's missing or off, with quick-win actions and owners |
 | `get_entity(name)` | the resolved assertions about one entity, each with its source and as-of date |
+| `list_commands()` | a menu of ready-made commands (exec brief, NPS, revenue, risks, owners, reporting lines, …) |
+| `run_command(name, argument)` | runs a named command from that menu |
+
+Don't know what to ask? *"What can the house-harness do?"* makes the agent call
+`list_commands`; *"run the exec brief"* calls `run_command`.
 
 `ask_company` routes through the same single entrypoint as HTTP `/ask`, so the two
 surfaces can never diverge. The same host also serves `GET /health` (open) and
-`POST /ask` (bearer-gated) for non-MCP clients. (Locally, `house-harness mcp` runs
-the same server over stdio for an agent to spawn as a subprocess.)
+`POST /ask` (bearer-gated) for non-MCP clients; the `/mcp` endpoint itself is left
+**open (no token)** so it adds in one command — fine for a demo URL, gate it with a
+header token for real use. (Locally, `house-harness mcp` runs the same server over
+stdio for an agent to spawn as a subprocess.)
 
 ## What's inside
 
@@ -68,7 +75,7 @@ src/house_harness/
                   #   vocab induction, name canon, harness distillation, health mirror
   retrieval/      # the raw-corpus fallback for out-of-namespace questions
   synthesis/      # query-time answering + claim entailment verification
-  serve/          # mcp.py (primary) + the thin HTTP /ask /health server
+  serve/          # mcp.py — MCP server, also serving /ask + /health on one app; + a stdlib HTTP-only fallback
   guards/         # egress PII/secret redaction
 data/             # the vendored company corpus (no runtime fetch)
 evals/            # the uplift gate (with- vs without-harness) + the held-out set

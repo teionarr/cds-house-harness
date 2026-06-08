@@ -47,7 +47,8 @@ for _ in $(seq 1 30); do
   if curl -fsS "http://localhost:$APP_PORT/health" >/dev/null 2>&1; then
     info "Up. The agent interface is ready:"
     printf "    HTTP/MCP:  http://localhost:%s\n" "$APP_PORT"
-    printf "    Ask:       curl -s localhost:%s/ask -d '{\"q\":\"Who reports to the CEO?\"}'\n\n" "$APP_PORT"
+    printf "    MCP:       claude mcp add --transport http house-harness http://localhost:%s/mcp\n" "$APP_PORT"
+    printf "    Ask:       curl -s localhost:%s/ask -H \"Authorization: Bearer \$HOUSE_HARNESS_API_TOKEN\" -d '{\"q\":\"Who reports to the CEO?\"}'\n\n" "$APP_PORT"
     exit 0
   fi
   sleep 2

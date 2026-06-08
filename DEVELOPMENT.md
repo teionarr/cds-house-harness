@@ -69,10 +69,12 @@ make package    # zip the committed files for delivery
 
 One process, one port (`APP_PORT`, default 8080), three routes:
 
-- **`/mcp`** — the MCP server (FastMCP, streamable-http). `house-harness mcp` runs it
+- **`/mcp`** — the MCP server (FastMCP, streamable-http), exposing six tools:
+  `ask_company`, `get_harness`, `get_harness_health`, `get_entity`, and `list_commands`
+  / `run_command` (a discoverable menu of named commands). `house-harness mcp` runs it
   over **stdio** for a local agent to spawn; `house-harness mcp --transport
   streamable-http` hosts it at a URL a client adds with `claude mcp add --transport
-  http <name> https://<host>/mcp`. This is what the Fly deploy runs.
+  http <name> https://<host>/mcp`. This is what the Fly deploy runs (open, no token).
 - **`/health`** — open deploy probe (`{status, mode}`).
 - **`/ask`** — token-gated REST fallback for non-MCP clients (`{"q": "..."}` → envelope).
 
@@ -125,7 +127,6 @@ These have types/seams in the codebase and are intended next steps — see `SOLU
 - **Gates.** `make lint && make type && make test` before a commit; CI runs them plus
   the eval gate (`.github/workflows/`). Secrets via Doppler or `.env` (never committed).
 - **Branch flow.** `main` is protected: no force-push or deletion, and merges go through
-  a pull request with the required checks green — `quality` and `deploy-smoke` (and
-  `greptile` once a PR has run). Work on a branch, open a PR, let CI + Greptile
-  (`greptile.json` rules) review it, merge when green. The deploy job ships to Fly on
-  green `main`.
+  a pull request with the required checks green — `quality`, `deploy-smoke`, and
+  `Greptile Review`. Work on a branch, open a PR, let CI + Greptile (`greptile.json`
+  rules) review it, merge when green. The deploy job ships to Fly on green `main`.

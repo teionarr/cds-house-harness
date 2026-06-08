@@ -4,10 +4,11 @@
 
 A **company harness** built over a company's raw document corpus. It resolves the
 snapshot into a queryable **ontology** and emits a generated `<COMPANY>.md` (charter,
-taxonomy, guardrails + authorities, playbooks, resolved aliases) — the compact,
-sourced artifact an agent loads to *operate as the company* without reading everything.
+targets, guardrails + authorities, taxonomy, and a "needs clarification" gap mirror) —
+the compact, sourced artifact an agent loads to *operate as the company* without
+reading everything.
 
-The consumer is an agent. The primary interface is **MCP** (four tools); HTTP `/ask`
+The consumer is an agent. The primary interface is **MCP** (six tools); HTTP `/ask`
 is the same engine over a socket. Every answer is a **trust envelope** — not a string,
 but sourced claims + dissent + freshness + coverage gaps + authority-routed escalation
 + confidence — so an agent can act on it, not just read it.
@@ -27,7 +28,8 @@ one command — no clone, no build:
 
 ```bash
 claude mcp add --transport http house-harness https://house-harness.fly.dev/mcp
-# ...then ask the agent. Tools: ask_company, get_harness, get_harness_health, get_entity.
+# ...then ask the agent. Tools: ask_company, get_harness, get_harness_health, get_entity,
+#   plus list_commands + run_command — a menu of ready-made commands you can run by name.
 
 # Or hit the same engine over HTTP:
 curl -s https://house-harness.fly.dev/ask -H "Authorization: Bearer $HOUSE_HARNESS_API_TOKEN" \
@@ -35,8 +37,9 @@ curl -s https://house-harness.fly.dev/ask -H "Authorization: Bearer $HOUSE_HARNE
 ```
 
 Live instance: **https://house-harness.fly.dev** (Fly.io). `/health` is open and echoes
-the serve mode; `/ask` is bearer-gated. Machines scale to zero, so the first call after
-idle wakes in a few seconds.
+the serve mode; `/ask` is bearer-gated; the `/mcp` endpoint is **open (no token)** for
+one-command demo use — gate it with a header token for production. Machines scale to
+zero, so the first call after idle wakes in a few seconds.
 
 **Try the cross-cutting questions** (each spans documents that disagree):
 - *"When does Confluence launch?"* → **Sep 30**, with the public June date flagged as the superseded line.
