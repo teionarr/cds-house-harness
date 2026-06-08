@@ -22,9 +22,10 @@ from house_harness.schema import (
     RelationKind,
 )
 
-# Domain -> the function accountable for it, so a conflict/gap routes to the RIGHT
-# owner instead of a single catch-all. Tried only after the org graph + guardrail
-# authorities; a generic area beats a misleading "Board of Directors" on everything.
+# OPTIONAL per-corpus tuning (not engine config): a last-resort domain->function map,
+# tried ONLY after the derived signals (org `owns` edges + guardrail authorities). On a
+# new corpus this can be empty — routing then relies on the derived signals and returns
+# None (an honest "no known owner") rather than a misleading default. Safe to regenerate.
 _DOMAIN_OWNER: list[tuple[str, str]] = [
     (r"revenue|ebitda|runway|burn|arr|margin|cash|forecast|target", "Finance (CFO)"),
     (r"\bnps\b|churn|csat|retention|loyalty", "Customer Success"),

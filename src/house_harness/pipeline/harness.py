@@ -33,7 +33,7 @@ import networkx as nx
 from pydantic import BaseModel, ConfigDict, Field
 
 from house_harness.config.structured import llm_json
-from house_harness.pipeline import aliases, attributes, names, ontology
+from house_harness.pipeline import aliases, attributes, names, ontology, vocab
 from house_harness.schema import (
     Artifact,
     Assertion,
@@ -140,6 +140,10 @@ def _tier(artifact_source_type: str | None) -> SourceTier:
     return ontology.RELIABILITY.get(artifact_source_type or "", SourceTier.interview)
 
 
+# High-signal doc types fed to vocab induction (the fact-dense ones); falls back to
+# the whole corpus if none are tagged.
+_VOCAB_SIGNAL_TYPES = {"doc", "all_hands", "board", "review", "dashboard", "pdf_financial", "email"}
+
 # Relations that are also stored as assertions (queryable hierarchy/authority).
 _RELATION_ASSERTION_KINDS = {
     RelationKind.reports_to,
@@ -180,7 +184,7 @@ DOCUMENT (source_type={source_type}, dated {doc_as_of}):
 
 
 def _vocab_block() -> str:
-    return "\n".join(f"- {k}: {v}" for k, v in attributes.ATTRIBUTES.items())
+    return "\n".join(f"- {k}: {v}" for k, v in attributes.active_vocab().items())
 
 
 def _map_raw_assertion(
@@ -415,6 +419,16 @@ def extract_harness(
     global _REGISTRY
     roster = " ".join(a.text for a in artifacts if "org-chart" in a.id and "image" not in a.id)
     _REGISTRY = names.build_registry(roster)
+
+    # Induce + install THIS corpus's domain attribute namespace, so resolve()'s
+    # grouping (and contradiction detection) fires on any corpus, not just the
+    # bundled one. Kernel stays; an induction miss falls back to the seed/pinned vocab
+    # and is still caught by the new_attribute: escape hatch. Done before the pool so
+    # every per-doc extraction is shown the same namespace.
+    signal = [a.text for a in artifacts if a.metadata.get("source_type") in _VOCAB_SIGNAL_TYPES]
+    induced = vocab.induce(signal or [a.text for a in artifacts])
+    if induced:
+        attributes.install_vocab(induced)
 
     store: dict[str, Assertion] = {}
     edges: list[GraphEdge] = []

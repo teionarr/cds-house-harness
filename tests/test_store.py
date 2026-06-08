@@ -75,6 +75,15 @@ def test_manifest_detects_changed_files():
     assert set(changed) == {"data/b.md", "data/c.md"}  # unchanged a.md is skipped
 
 
+def test_vocab_roundtrip_and_replace():
+    conn = _conn()
+    assert store.load_vocab(conn) == {}  # none induced yet
+    store.save_vocab(conn, {"nps": "score", "mrr": "monthly recurring"})
+    assert store.load_vocab(conn) == {"nps": "score", "mrr": "monthly recurring"}
+    store.save_vocab(conn, {"nps": "score"})  # replace-all, not merge
+    assert store.load_vocab(conn) == {"nps": "score"}
+
+
 def test_removed_files_detects_retraction():
     conn = _conn()
     store.save_manifest_entry(conn, "data/a.md", "h1")

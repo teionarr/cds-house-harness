@@ -7,11 +7,14 @@ corpus and re-ingestion is idempotent (one row per stable `assertion_id`). The
 documented scale path (pgvector/Postgres) swaps only this layer — nothing above it
 changes.
 
-Three tables:
+Four tables:
 - `assertions(id, json)`     — the ontology spine, one row per assertion id.
 - `harness(company, json)`   — the distilled House Harness (single logical row).
 - `manifest(path, hash)`     — the re-ingest-on-change ledger: a cold boot ingests
                                only files whose content hash is new or changed.
+- `vocab(key, description)`  — the per-corpus DOMAIN attribute namespace, induced at
+                               extraction and pinned so re-ingests reuse it verbatim
+                               and the serving process grades against the same keys.
 """
 
 from __future__ import annotations
@@ -51,6 +54,7 @@ def connect(database_url: str | None = None) -> sqlite3.Connection:
         CREATE TABLE IF NOT EXISTS assertions (id TEXT PRIMARY KEY, json TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS harness    (company TEXT PRIMARY KEY, json TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS manifest   (path TEXT PRIMARY KEY, hash TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS vocab      (key TEXT PRIMARY KEY, description TEXT NOT NULL);
         """
     )
     return conn
@@ -102,6 +106,24 @@ def load_harness(conn: sqlite3.Connection) -> HouseHarness | None:
     cur = conn.execute("SELECT json FROM harness LIMIT 1")
     row = cur.fetchone()
     return HouseHarness.model_validate_json(row[0]) if row else None
+
+
+# ── pinned domain vocabulary ──────────────────────────────────────────────────
+
+
+def save_vocab(conn: sqlite3.Connection, domain: dict[str, str]) -> None:
+    """Pin the corpus's induced DOMAIN vocab (replace-all). Empty is valid — it means
+    'kernel only', e.g. induction was skipped/failed."""
+    conn.execute("DELETE FROM vocab")
+    conn.executemany(
+        "INSERT INTO vocab (key, description) VALUES (?, ?)", list(domain.items())
+    )
+    conn.commit()
+
+
+def load_vocab(conn: sqlite3.Connection) -> dict[str, str]:
+    """Load the pinned DOMAIN vocab; empty dict if none has been induced yet."""
+    return {key: desc for key, desc in conn.execute("SELECT key, description FROM vocab")}
 
 
 # ── re-ingest-on-change manifest (the moving-target requirement) ───────────────

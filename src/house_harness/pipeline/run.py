@@ -19,7 +19,7 @@ import os
 from pathlib import Path
 
 from house_harness.ingest.loaders import load_corpus
-from house_harness.pipeline import ontology
+from house_harness.pipeline import attributes, ontology
 from house_harness.pipeline import store as _store
 from house_harness.pipeline.harness import extract_harness, render_markdown
 from house_harness.pipeline.health import assess_harness
@@ -58,6 +58,7 @@ def run_pipeline(corpus_dir: str = "data", out_dir: str = "out") -> dict:
 
     conn = _store.connect()
     _store.save_assertions(conn, assertions.values())
+    _store.save_vocab(conn, attributes.domain_vocab())  # pin THIS corpus's induced namespace
     # Wholesale rebuild = `assertions` is the complete current ontology, so reconcile
     # the store to it: drop assertions + manifest rows from any RETRACTED source.
     pruned = _store.prune_assertions(conn, set(assertions))
@@ -124,5 +125,8 @@ def load_serving_state() -> tuple[HouseHarness | None, dict[str, Assertion]]:
     conn = _store.connect()
     harness = _store.load_harness(conn)
     assertions = _store.load_assertions(conn)
+    pinned = _store.load_vocab(conn)
     conn.close()
+    if pinned:  # grade/route queries against THIS corpus's pinned namespace
+        attributes.install_vocab(pinned)
     return harness, assertions
