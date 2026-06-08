@@ -64,6 +64,9 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "S", "ASYNC"]
 # S = bandit security rules: untrusted-content + secrets discipline matters here.
+# UP042: `(str, Enum)` is deliberate — its members serialize as the raw string via
+# `.value` while keeping classic-Enum repr; StrEnum changes f-string behavior subtly.
+ignore = ["UP042"]
 [tool.ruff.lint.per-file-ignores]
 # Tests legitimately use `assert` (S101).
 "tests/**" = ["S101"]
@@ -75,6 +78,9 @@ select = ["E", "F", "I", "UP", "B", "S", "ASYNC"]
 [tool.pyright]
 typeCheckingMode = "standard"
 pythonVersion = "3.12"
+# Type-check the shipped package. Tests use **kwargs helper factories that pyright
+# can't narrow (a known limitation); they're covered by pytest, not the type gate.
+include = ["src"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

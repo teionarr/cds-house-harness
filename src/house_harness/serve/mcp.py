@@ -76,4 +76,6 @@ def get_entity(name: str) -> dict:
 
 def run(transport: str = "stdio") -> None:
     """Start the MCP server (default stdio — the agent spawns it as a subprocess)."""
-    mcp.run(transport=transport)
+    from typing import Literal, cast
+
+    mcp.run(transport=cast('Literal["stdio", "sse", "streamable-http"]', transport))

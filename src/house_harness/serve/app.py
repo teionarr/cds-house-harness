@@ -21,7 +21,14 @@ from __future__ import annotations
 import logging
 import os
 
-from house_harness.schema import Confidence, ServeMode, Status, TrustEnvelope
+from house_harness.schema import (
+    Assertion,
+    Confidence,
+    HouseHarness,
+    ServeMode,
+    Status,
+    TrustEnvelope,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -88,10 +95,10 @@ def answer(query: str) -> TrustEnvelope:
     return env
 
 
-_STATE: tuple[object | None, dict] | None = None
+_STATE: tuple[HouseHarness | None, dict[str, Assertion]] | None = None
 
 
-def _serving_state() -> tuple[object | None, dict]:
+def _serving_state() -> tuple[HouseHarness | None, dict[str, Assertion]]:
     """Load (harness, assertion store) from SQLite once and cache for the process.
     `reset_state()` clears it after a re-ingest."""
     global _STATE

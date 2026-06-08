@@ -221,16 +221,16 @@ def _gather(store: dict[str, Assertion], res: QResolution) -> tuple[list[Asserti
     Maria, kept distinct by the anti-alias ledger)."""
     if res.reverse and res.subject:
         if res.attribute == "role":  # "who is the CEO?" -> find the person whose role matches
-            attrs: tuple[str, ...] = ("role",)
+            rel_attrs: tuple[str, ...] = ("role",)
         elif res.intent == "hierarchy":
-            attrs = _HIERARCHY_ATTRS
+            rel_attrs = _HIERARCHY_ATTRS
         else:
-            attrs = _AUTHORITY_ATTRS
+            rel_attrs = _AUTHORITY_ATTRS
         needle = res.subject.lower()
         live = [
             a
             for a in store.values()
-            if a.live and a.attribute in attrs and needle in a.value.lower()
+            if a.live and a.attribute in rel_attrs and needle in a.value.lower()
         ]
         return ontology._resolve_assertions(live)
     subj = res.subject.strip().lower() if res.subject else None

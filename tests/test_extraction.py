@@ -24,9 +24,7 @@ pytestmark = pytest.mark.skipif(
     not os.environ.get("ANTHROPIC_API_KEY"), reason="extraction needs the model (ANTHROPIC_API_KEY)"
 )
 
-FIXTURE = json.loads(
-    (Path(__file__).parent / "fixtures" / "extraction_golden.json").read_text()
-)
+FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "extraction_golden.json").read_text())
 CASES = {c["id"]: c for c in FIXTURE["cases"]}
 
 

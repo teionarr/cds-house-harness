@@ -55,7 +55,7 @@ class Playbook(BaseModel):
 
 class RelationKind(str, Enum):
     reports_to = "reports_to"
-    dotted_reports_to = "dotted_reports_to"   # matrix / dotted-line org
+    dotted_reports_to = "dotted_reports_to"  # matrix / dotted-line org
     owns = "owns"
     uses = "uses"
     depends_on = "depends_on"
@@ -107,16 +107,17 @@ class Escalation(BaseModel):
 
 
 class Status(str, Enum):
-    answered = "answered"      # grounded answer returned
-    abstained = "abstained"    # no source covers it — a real coverage gap
-    degraded = "degraded"      # partial: some stage failed, answer is incomplete
-    failed = "failed"          # could not complete (retrieval/LLM/system error)
+    answered = "answered"  # grounded answer returned
+    abstained = "abstained"  # no source covers it — a real coverage gap
+    degraded = "degraded"  # partial: some stage failed, answer is incomplete
+    failed = "failed"  # could not complete (retrieval/LLM/system error)
 
 
 class ServeMode(str, Enum):
     """Provenance of the answer. `live` = the real pipeline (the only mode that may
     be graded/shipped). `mock` = canned skeleton answer (Phase-1 deploy-first only);
     it self-identifies so a mock can never masquerade as a real answer."""
+
     live = "live"
     mock = "mock"
 
@@ -127,6 +128,7 @@ class AnswerPath(str, Enum):
     questions — every claim carries an `assertion_id`). `fallback` = raw retrieval
     over the corpus for out-of-namespace questions (no assertion_ids; capped lower
     confidence). A graded trap returned via `fallback` is a bug, not an answer."""
+
     ontology = "ontology"
     fallback = "fallback"
 
@@ -134,7 +136,7 @@ class AnswerPath(str, Enum):
 class TrustEnvelope(BaseModel):
     answer: str
     status: Status = Status.answered
-    mode: ServeMode = ServeMode.live          # `mock` answers stamp themselves; validate FAILs on mock
+    mode: ServeMode = ServeMode.live  # `mock` answers stamp themselves; validate FAILs on mock
     answer_path: AnswerPath = AnswerPath.ontology  # ontology-first by default; fallback self-flags
     claims: list[Claim] = Field(default_factory=list)
     freshness: str | None = None
@@ -204,8 +206,8 @@ class RequestKind(str, Enum):
     """Closed action vocabulary. No arbitrary fetch, no URL, no shell — the
     reader can only *request* these; the executor validates and runs them."""
 
-    retrieve = "retrieve"   # pull more context for an entity/topic
-    escalate = "escalate"   # route a coverage gap to an owner
+    retrieve = "retrieve"  # pull more context for an entity/topic
+    escalate = "escalate"  # route a coverage gap to an owner
 
 
 class PlanRequest(BaseModel):
@@ -231,8 +233,8 @@ class ReaderOutput(BaseModel):
 
 class ContextStrategy(str, Enum):
     ontology_first = "ontology_first"  # DEFAULT: answer from the resolved ontology slice
-    whole_corpus = "whole_corpus"      # fallback for out-of-ontology questions (raw, fits in context)
-    hybrid = "hybrid"                  # scale path: dense+sparse+graph index
+    whole_corpus = "whole_corpus"  # fallback for out-of-ontology questions (raw, fits in context)
+    hybrid = "hybrid"  # scale path: dense+sparse+graph index
 
 
 class CorpusProfile(BaseModel):
@@ -261,28 +263,28 @@ class PipelineConfig(BaseModel):
 
 
 class GapKind(str, Enum):
-    missing_section = "missing_section"           # an expected element is empty/thin
-    unowned = "unowned"                           # target/guardrail with no authority
-    unresolved_conflict = "unresolved_conflict"   # sources disagree, no source of record
-    stale = "stale"                               # newest supporting source is old
-    coverage_gap = "coverage_gap"                 # a cared-about topic no source addresses
-    orphan = "orphan"                             # entity referenced but never defined
+    missing_section = "missing_section"  # an expected element is empty/thin
+    unowned = "unowned"  # target/guardrail with no authority
+    unresolved_conflict = "unresolved_conflict"  # sources disagree, no source of record
+    stale = "stale"  # newest supporting source is old
+    coverage_gap = "coverage_gap"  # a cared-about topic no source addresses
+    orphan = "orphan"  # entity referenced but never defined
 
 
 class HarnessGap(BaseModel):
     kind: GapKind
-    where: str                 # the section / entity / metric the gap is about
-    detail: str                # what's missing or off
-    severity: int = Field(ge=1, le=5)   # 1 minor .. 5 critical
-    suggested_action: str      # the quick win to fix it
-    owner: str | None = None   # who should act (from harness authorities)
+    where: str  # the section / entity / metric the gap is about
+    detail: str  # what's missing or off
+    severity: int = Field(ge=1, le=5)  # 1 minor .. 5 critical
+    suggested_action: str  # the quick win to fix it
+    owner: str | None = None  # who should act (from harness authorities)
 
 
 class HarnessHealth(BaseModel):
     """A mirror the company can read: what the system sees, and the quick wins."""
 
-    completeness: float = Field(ge=0.0, le=1.0)            # share of expected harness populated
-    gaps: list[HarnessGap] = Field(default_factory=list)   # prioritized by severity
+    completeness: float = Field(ge=0.0, le=1.0)  # share of expected harness populated
+    gaps: list[HarnessGap] = Field(default_factory=list)  # prioritized by severity
     summary: str = ""
 
 
@@ -295,7 +297,7 @@ class Feedback(BaseModel):
 
     question: str
     correct_answer: str
-    provided_by: str             # the authority/owner or user who resolved it
+    provided_by: str  # the authority/owner or user who resolved it
     supersedes: list[str] = Field(default_factory=list)  # source ids this overrides
 
 
@@ -306,11 +308,11 @@ class SourceTier(int, Enum):
     """Reliability ranking — higher wins ties in conflict resolution. A board
     email outweighs a Slack joke; a financial filing outweighs an interview."""
 
-    filing = 5      # audited financials / board deck (PDF)
-    board = 4       # board update / email
-    official = 3    # all-hands, weekly review, dashboards
-    interview = 2   # 1:1 interviews
-    chat = 1        # Slack / chat — mostly noise
+    filing = 5  # audited financials / board deck (PDF)
+    board = 4  # board update / email
+    official = 3  # all-hands, weekly review, dashboards
+    interview = 2  # 1:1 interviews
+    chat = 1  # Slack / chat — mostly noise
 
 
 class Assertion(BaseModel):
@@ -326,16 +328,16 @@ class Assertion(BaseModel):
     """
 
     id: str
-    subject: str                 # canonical entity id (post alias-resolution)
-    attribute: str               # e.g. "confluence_launch_date", "nps"
+    subject: str  # canonical entity id (post alias-resolution)
+    attribute: str  # e.g. "confluence_launch_date", "nps"
     value: str
-    scope: str | None = None     # qualifier; None = global. Same scope + differ = conflict
+    scope: str | None = None  # qualifier; None = global. Same scope + differ = conflict
     as_of: str | None = None
     source: SourceSpan
     reliability: SourceTier = SourceTier.official
     confidence: Confidence = Confidence.medium
     supersedes: list[str] = Field(default_factory=list)  # assertion ids
-    live: bool = True            # False once superseded by a fresher/higher-tier assertion
+    live: bool = True  # False once superseded by a fresher/higher-tier assertion
 
 
 class Alias(BaseModel):

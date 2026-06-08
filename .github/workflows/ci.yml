@@ -5,26 +5,38 @@ on:
   push:
     branches: [main]
 
+# Cancel superseded runs on the same ref (cheaper, faster feedback).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # ── Quality gate: lint + format + types + unit tests. No model calls (the live
+  # extraction tests skip without ANTHROPIC_API_KEY, which this job does not set),
+  # so this is free and runs on every push/PR. ────────────────────────────────────
   quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - name: Set up Python
         run: uv python install 3.12
       - name: Install deps
         run: uv sync --all-extras --dev
       - name: Lint (ruff)
-        run: uv run ruff check . && uv run ruff format --check .
+        run: uv run ruff check .
+      - name: Format check (ruff)
+        run: uv run ruff format --check .
       - name: Type check (pyright)
         run: uv run pyright
       - name: Unit tests
         run: uv run pytest -q --cov=house_harness --cov-report=term-missing
 
-  # Anti-"deploy-tax-at-hour-5": prove the DEPLOYABLE ARTIFACT comes up healthy on
-  # every push. Red here = you can't deploy = no Phase 2+ work (see PLAN Phase 1).
+  # ── Anti-"deploy-tax-at-hour-5": prove the DEPLOYABLE ARTIFACT comes up healthy on
+  # every push. Red here = you can't deploy. Free (mock mode, no model). ────────────
   deploy-smoke:
     runs-on: ubuntu-latest
     steps:
@@ -33,7 +45,8 @@ jobs:
         run: docker build -t house-harness:ci .
       - name: Container comes up healthy (the deploy gate)
         run: |
-          docker run -d --name hh -e HOUSE_HARNESS_SERVE_MODE=mock -e APP_PORT=8080 -p 8080:8080 house-harness:ci serve
+          docker run -d --name hh -e HOUSE_HARNESS_SERVE_MODE=mock -e APP_PORT=8080 \
+            -p 8080:8080 house-harness:ci serve
           ok=0
           for _ in $(seq 1 30); do
             if curl -fsS localhost:8080/health | grep -q '"status": "ok"'; then ok=1; break; fi
@@ -45,3 +58,26 @@ jobs:
       - name: Stop
         if: always()
         run: docker rm -f hh || true
+
+  # ── CD: deploy to Fly on green main. Gated on quality + smoke so a red build never
+  # ships. Needs the FLY_API_TOKEN repo secret (`fly tokens create deploy`). The
+  # ontology lives on the persistent Fly volume, so a deploy never re-extracts. ─────
+  deploy:
+    needs: [quality, deploy-smoke]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency: deploy-production  # one deploy at a time
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy
+        run: flyctl deploy --remote-only --ha=false
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Verify live /health
+        run: |
+          for _ in $(seq 1 30); do
+            if curl -fsS https://house-harness.fly.dev/health | grep -q '"status": "ok"'; then exit 0; fi
+            sleep 3
+          done
+          echo "live /health did not go green" && exit 1

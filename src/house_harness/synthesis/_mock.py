@@ -16,7 +16,6 @@ from __future__ import annotations
 from house_harness.schema import (
     Claim,
     Confidence,
-    Dissent,
     Escalation,
     ServeMode,
     Status,
@@ -28,7 +27,10 @@ def _answered() -> TrustEnvelope:
     """Grounded answer, a surfaced conflict, full provenance. `verified` is None
     at runtime — entailment is scored offline (§4.12), not per query."""
     return TrustEnvelope(
-        answer="Pricing/discount approval sits with Sofia Almeida (CRO); the org chart doesn't name a pricing owner.",
+        answer=(
+            "Pricing/discount approval sits with Sofia Almeida (CRO); the org chart "
+            "doesn't name a pricing owner."
+        ),
         status=Status.answered,
         claims=[
             Claim(
@@ -59,7 +61,9 @@ def _abstain() -> TrustEnvelope:
         dissent=[],
         coverage_gaps=["no source addresses 2027 headcount"],
         escalate_to=[
-            Escalation(gap="2027 headcount", owner="Sarah Ng (VP People)", evidence=["org-chart.md"])
+            Escalation(
+                gap="2027 headcount", owner="Sarah Ng (VP People)", evidence=["org-chart.md"]
+            )
         ],
         errors=[],
         confidence=Confidence.abstain,
@@ -74,7 +78,12 @@ def _degraded() -> TrustEnvelope:
         answer="Partial answer: the harness loaded, but graph expansion for hierarchy timed out.",
         status=Status.degraded,
         claims=[
-            Claim(text="<PARTIAL CLAIM>", sources=["weekly-review-2026-04-21.md#L80"], as_of="2026-04-21", verified=None)
+            Claim(
+                text="<PARTIAL CLAIM>",
+                sources=["weekly-review-2026-04-21.md#L80"],
+                as_of="2026-04-21",
+                verified=None,
+            )
         ],
         freshness="newest supporting source: 2026-04-21",
         dissent=[],
@@ -105,7 +114,7 @@ def get_mock_envelope(kind: str = "answered") -> TrustEnvelope:
     try:
         env = _KINDS[kind]()
     except KeyError:
-        raise ValueError(f"unknown kind {kind!r}; expected one of {sorted(_KINDS)}")
+        raise ValueError(f"unknown kind {kind!r}; expected one of {sorted(_KINDS)}") from None
     env.mode = ServeMode.mock
     return env
 

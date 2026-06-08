@@ -63,7 +63,7 @@ class _Handler(BaseHTTPRequestHandler):
             return
         self._send(200, env.model_dump(mode="json"))
 
-    def log_message(self, *args) -> None:  # keep CI/logs quiet
+    def log_message(self, format: str, *args: object) -> None:  # keep CI/logs quiet  # noqa: A002
         return
 
 

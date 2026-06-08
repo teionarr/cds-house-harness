@@ -21,6 +21,7 @@ from pathlib import Path
 from house_harness.ingest.loaders import load_corpus
 from house_harness.pipeline import store as _store
 from house_harness.pipeline.harness import extract_harness, render_markdown
+from house_harness.schema import Assertion, HouseHarness
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,7 @@ def ingest_on_boot(corpus_dir: str = "data") -> bool:
     return True
 
 
-def load_serving_state() -> tuple[object | None, dict]:
+def load_serving_state() -> tuple[HouseHarness | None, dict[str, Assertion]]:
     """Load (harness, assertion_store) from SQLite for the query path. Returns
     (None, {}) if the ontology hasn't been built yet."""
     conn = _store.connect()
