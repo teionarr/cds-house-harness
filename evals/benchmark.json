@@ -1,16 +1,27 @@
 {
-  "n": 13,
+  "n": 30,
   "with_harness": {
-    "pass_rate": 1.0,
-    "passed": 13
+    "pass_rate": 0.733,
+    "passed": 22,
+    "input_tokens": 899909,
+    "output_tokens": 14662,
+    "cost_usd": 2.758,
+    "avg_tokens_per_query": 30486,
+    "avg_latency_ms": 11322
   },
   "without_harness": {
-    "pass_rate": 0.923,
-    "passed": 12
+    "pass_rate": 0.833,
+    "passed": 25,
+    "input_tokens": 1814299,
+    "output_tokens": 15119,
+    "cost_usd": 5.508,
+    "avg_tokens_per_query": 60981,
+    "avg_latency_ms": 12439
   },
   "delta": {
-    "pass_rate": 0.077
+    "pass_rate": -0.1
   },
+  "cost_ratio_baseline_over_harness": 2.0,
   "uplift_canary_split": false,
   "errors": 0,
   "cases": [
@@ -27,6 +38,10 @@
         "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 2970,
+        "without": 60584
       }
     },
     {
@@ -42,6 +57,10 @@
         "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 3255,
+        "without": 60756
       }
     },
     {
@@ -57,6 +76,10 @@
         "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 3050,
+        "without": 60509
       }
     },
     {
@@ -72,6 +95,10 @@
         "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 61984,
+        "without": 61984
       }
     },
     {
@@ -87,6 +114,10 @@
         "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 2717,
+        "without": 60296
       }
     },
     {
@@ -102,6 +133,10 @@
         "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 3569,
+        "without": 60488
       }
     },
     {
@@ -117,6 +152,10 @@
         "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 62507,
+        "without": 62507
       }
     },
     {
@@ -132,25 +171,14 @@
         "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 63174,
+        "without": 63174
       }
     },
     {
       "id": "discount-authority",
-      "answer_path": "fallback",
-      "status": "abstained",
-      "with_harness": {
-        "passed": true,
-        "mechanical_failures": [],
-        "graded": "deterministic"
-      },
-      "without_harness": {
-        "passed": true,
-        "mechanical_failures": [],
-        "graded": "deterministic"
-      }
-    },
-    {
-      "id": "recon-bug",
       "answer_path": "fallback",
       "status": "answered",
       "with_harness": {
@@ -162,6 +190,29 @@
         "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 61584,
+        "without": 61584
+      }
+    },
+    {
+      "id": "recon-bug",
+      "answer_path": "fallback",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 62183,
+        "without": 62183
       }
     },
     {
@@ -177,6 +228,10 @@
         "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 3483,
+        "without": 60484
       }
     },
     {
@@ -192,10 +247,71 @@
         "passed": false,
         "mechanical_failures": [],
         "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 61502,
+        "without": 60043
       }
     },
     {
       "id": "non-person-identity",
+      "answer_path": "fallback",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 61863,
+        "without": 61863
+      }
+    },
+    {
+      "id": "rev-brasil",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 2740,
+        "without": 60214
+      }
+    },
+    {
+      "id": "rev-sea",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 3098,
+        "without": 60128
+      }
+    },
+    {
+      "id": "nps-sea-smb",
       "answer_path": "fallback",
       "status": "answered",
       "with_harness": {
@@ -207,6 +323,276 @@
         "passed": true,
         "mechanical_failures": [],
         "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 61673,
+        "without": 61673
+      }
+    },
+    {
+      "id": "nps-brasil-smb",
+      "answer_path": "fallback",
+      "status": "answered",
+      "with_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 61784,
+        "without": 61784
+      }
+    },
+    {
+      "id": "net-new-merchants",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 2641,
+        "without": 60121
+      }
+    },
+    {
+      "id": "runway",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 2489,
+        "without": 60166
+      }
+    },
+    {
+      "id": "tap-sg-launch",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 2548,
+        "without": 60160
+      }
+    },
+    {
+      "id": "ceo-identity",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 3330,
+        "without": 60036
+      }
+    },
+    {
+      "id": "pedro-sofia",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 2439,
+        "without": 60182
+      }
+    },
+    {
+      "id": "two-aarons",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 2682,
+        "without": 60248
+      }
+    },
+    {
+      "id": "two-aishas",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 2835,
+        "without": 60306
+      }
+    },
+    {
+      "id": "how-many-priyas",
+      "answer_path": "fallback",
+      "status": "answered",
+      "with_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 61809,
+        "without": 61809
+      }
+    },
+    {
+      "id": "tanwei-daniel",
+      "answer_path": "fallback",
+      "status": "answered",
+      "with_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 61656,
+        "without": 61656
+      }
+    },
+    {
+      "id": "crm-brasil",
+      "answer_path": "fallback",
+      "status": "answered",
+      "with_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 61799,
+        "without": 61799
+      }
+    },
+    {
+      "id": "acai-blocker",
+      "answer_path": "fallback",
+      "status": "answered",
+      "with_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 62503,
+        "without": 62503
+      }
+    },
+    {
+      "id": "eu-headcount",
+      "answer_path": "fallback",
+      "status": "abstained",
+      "with_harness": {
+        "passed": true,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 61595,
+        "without": 60180
+      }
+    },
+    {
+      "id": "forecast-2027",
+      "answer_path": "ontology",
+      "status": "answered",
+      "with_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "without_harness": {
+        "passed": false,
+        "mechanical_failures": [],
+        "graded": "deterministic"
+      },
+      "tokens": {
+        "with": 3109,
+        "without": 59998
       }
     }
   ]
