@@ -301,6 +301,231 @@
           ]
         ]
       }
+    },
+    {
+      "id": "rev-brasil",
+      "class": "scope",
+      "prompt": "What was Brazil's Q1 2026 revenue?",
+      "checks": {
+        "includes": [
+          [
+            "4.8",
+            "22.0",
+            "22 ",
+            "brl 22"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "rev-sea",
+      "class": "scope",
+      "prompt": "What was SEA's Q1 2026 revenue?",
+      "checks": {
+        "includes": [
+          [
+            "9.4"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "nps-sea-smb",
+      "class": "scope",
+      "prompt": "What's our NPS for the SEA SMB segment?",
+      "checks": {
+        "includes": [
+          [
+            "41"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "nps-brasil-smb",
+      "class": "scope",
+      "prompt": "What's NPS for the Brazil SMB segment?",
+      "checks": {
+        "includes": [
+          [
+            "31"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "net-new-merchants",
+      "class": "metric",
+      "prompt": "How many net new merchants did we add in Q1 2026?",
+      "checks": {
+        "includes": [
+          [
+            "412"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "runway",
+      "class": "metric",
+      "prompt": "How much runway do we have?",
+      "checks": {
+        "includes": [
+          [
+            "18"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "tap-sg-launch",
+      "class": "staleness",
+      "prompt": "When does HelixPay Tap launch in Singapore?",
+      "checks": {
+        "includes": [
+          [
+            "q3 2026",
+            "q3",
+            "2026"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ceo-identity",
+      "class": "identity",
+      "prompt": "Who is HelixPay's CEO?",
+      "checks": {
+        "includes": [
+          [
+            "wei chen"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "pedro-sofia",
+      "class": "anti-alias",
+      "prompt": "Is Pedro Almeida related to Sofia Almeida?",
+      "checks": {
+        "includes": [
+          [
+            "not related",
+            "unrelated",
+            "no relation",
+            "same surname",
+            "different",
+            "coincid",
+            "no,"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "two-aarons",
+      "class": "anti-alias",
+      "prompt": "Is Aaron Wong the same person as Aaron Goh?",
+      "checks": {
+        "includes": [
+          [
+            "different",
+            "two ",
+            "not the same",
+            "separate",
+            "no,"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "two-aishas",
+      "class": "anti-alias",
+      "prompt": "Is Aisha Mahmud the same person as Aisha Yusof?",
+      "checks": {
+        "includes": [
+          [
+            "different",
+            "two ",
+            "not the same",
+            "separate",
+            "no,"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "how-many-priyas",
+      "class": "anti-alias",
+      "prompt": "How many different people named Priya are there?",
+      "checks": {
+        "includes": [
+          [
+            "three",
+            "3"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "tanwei-daniel",
+      "class": "anti-alias",
+      "prompt": "Is Tan Wei Ming the same person as Daniel Tan?",
+      "checks": {
+        "includes": [
+          [
+            "different",
+            "not related",
+            "two ",
+            "not the same",
+            "no,"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "crm-brasil",
+      "class": "reliability/scope",
+      "prompt": "What CRM is Brazil's sales team actually using right now?",
+      "checks": {
+        "includes": [
+          [
+            "pipedrive"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "acai-blocker",
+      "class": "cross-source synthesis",
+      "prompt": "What is blocking the Acai Express deal?",
+      "checks": {
+        "includes": [
+          [
+            "confluence",
+            "reconcil",
+            "loyalty",
+            "280"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "eu-headcount",
+      "class": "abstention",
+      "prompt": "What is our headcount in Europe?",
+      "checks": {
+        "abstain": true,
+        "escalate": true
+      }
+    },
+    {
+      "id": "forecast-2027",
+      "class": "abstention",
+      "prompt": "What is the 2027 revenue forecast?",
+      "checks": {
+        "abstain": true,
+        "escalate": true
+      }
     }
   ],
   "baseline_spec": "without_harness MUST be a FAIR baseline: same model, same temperature, same full raw corpus in context (whole-corpus over data/), same cite-or-abstain prompt — the ONLY difference from with_harness is the ontology/harness layer. A weaker baseline (smaller context, no instructions, fewer docs) invalidates the uplift by flattering us. with_harness answers via synthesis.respond.answer (ontology-first, answer_path=ontology)."

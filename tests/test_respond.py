@@ -57,7 +57,7 @@ def patch_llm(monkeypatch):
     install a per-test QResolution + narrative."""
 
     def install(resolution, narrative="NARRATIVE", fallback=None):
-        def fake(prompt, schema):  # noqa: ANN001
+        def fake(prompt, schema, **kwargs):  # noqa: ANN001 — mirrors llm_json(*, cached_prefix=...)
             name = schema.__name__
             if name == "QResolution":
                 return resolution

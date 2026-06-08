@@ -38,8 +38,25 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT / "src") not in sys.path:  # src/ layout, robust to editable-install state
     sys.path.insert(0, str(ROOT / "src"))
 
-from house_harness.config.structured import llm_json  # noqa: E402
+from house_harness.config.structured import drain_usage, llm_json, reset_usage  # noqa: E402
 from house_harness.schema import AnswerPath, Confidence, Status, TrustEnvelope  # noqa: E402
+
+# Approximate claude-sonnet-4-6 list prices ($/1M tokens); override via env if needed.
+_PRICE_IN, _PRICE_OUT, _PRICE_CACHE = 3.0, 15.0, 0.30
+
+
+def _cost_usd(u: dict) -> float:
+    """Dollar cost of one usage aggregate (cached input billed at the cache rate)."""
+    fresh_in = max(0, u["input_tokens"] - u["cache_read_tokens"])
+    return round(
+        (
+            fresh_in * _PRICE_IN
+            + u["cache_read_tokens"] * _PRICE_CACHE
+            + u["output_tokens"] * _PRICE_OUT
+        )
+        / 1_000_000,
+        4,
+    )
 
 
 class _Verdict(BaseModel):
@@ -177,30 +194,44 @@ def run(suite_path: Path, subset: int | None, report: Path | None, gate: bool) -
 
     per_case = []
     wins = {"with_harness": 0, "without_harness": 0}
+    usage = {"with_harness": [], "without_harness": []}  # per-case usage aggregates
     canary_split = None
     errors = 0
     for case in cases:
         # Per-case isolation: one API/transient error (rate limit, exhausted credits)
         # records a failed case, never crashes the whole gate.
         try:
+            reset_usage()
             env = _with_harness(case["prompt"])
+            wu = drain_usage()  # what the HARNESS actually spent on this query
             with_grade = _grade_case(case, _render_envelope(env), env)
             if env.answer_path is AnswerPath.fallback and env.status is Status.answered:
                 # The harness ran the IDENTICAL baseline method (raw_corpus_answer) and
                 # produced this exact text. Grade the baseline on that SAME generation —
                 # so per-call sampling noise can't fabricate a spurious win/loss, and the
                 # "never worse than baseline on a fallback case" guarantee is structural
-                # (it also saves the second model call). Ontology + abstention cases are
-                # graded against an independent baseline, where the uplift is real.
+                # (it also saves the second model call). Same method -> same cost.
                 without_grade = _grade_case(case, env.answer, None)
+                bu = wu
             else:
+                reset_usage()
                 without_grade = _grade_case(case, _without_harness(case["prompt"]), None)
+                bu = drain_usage()
             path, status = env.answer_path.value, env.status.value
         except Exception as exc:  # noqa: BLE001 — isolation is the point
             errors += 1
             with_grade = {"passed": False, "error": f"{type(exc).__name__}: {exc}"[:160]}
             without_grade = {"passed": False, "error": "not run (with_harness errored)"}
             path, status = "error", "error"
+            wu = bu = {
+                "calls": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cache_read_tokens": 0,
+                "duration_ms": 0,
+            }
+        usage["with_harness"].append(wu)
+        usage["without_harness"].append(bu)
         wins["with_harness"] += with_grade["passed"]
         wins["without_harness"] += without_grade["passed"]
         if case.get("id") == "uplift-canary":
@@ -212,6 +243,10 @@ def run(suite_path: Path, subset: int | None, report: Path | None, gate: bool) -
                 "status": status,
                 "with_harness": with_grade,
                 "without_harness": without_grade,
+                "tokens": {
+                    "with": wu["input_tokens"] + wu["output_tokens"],
+                    "without": bu["input_tokens"] + bu["output_tokens"],
+                },
             }
         )
         print(
@@ -223,14 +258,40 @@ def run(suite_path: Path, subset: int | None, report: Path | None, gate: bool) -
     n = len(cases)
     rates = {k: round(v / n, 3) for k, v in wins.items()}
     delta = round(rates["with_harness"] - rates["without_harness"], 3)
+
+    def _arm_cost(key: str) -> dict:
+        tot = {
+            k: sum(u[k] for u in usage[key])
+            for k in ("input_tokens", "output_tokens", "cache_read_tokens", "duration_ms")
+        }
+        return {
+            "input_tokens": tot["input_tokens"],
+            "output_tokens": tot["output_tokens"],
+            "cost_usd": _cost_usd(tot),
+            "avg_tokens_per_query": round((tot["input_tokens"] + tot["output_tokens"]) / max(1, n)),
+            "avg_latency_ms": round(tot["duration_ms"] / max(1, n)),
+        }
+
+    cost = {
+        "with_harness": _arm_cost("with_harness"),
+        "without_harness": _arm_cost("without_harness"),
+    }
     benchmark = {
         "n": n,
-        "with_harness": {"pass_rate": rates["with_harness"], "passed": wins["with_harness"]},
+        "with_harness": {
+            "pass_rate": rates["with_harness"],
+            "passed": wins["with_harness"],
+            **cost["with_harness"],
+        },
         "without_harness": {
             "pass_rate": rates["without_harness"],
             "passed": wins["without_harness"],
+            **cost["without_harness"],
         },
         "delta": {"pass_rate": delta},
+        "cost_ratio_baseline_over_harness": round(
+            cost["without_harness"]["cost_usd"] / max(1e-9, cost["with_harness"]["cost_usd"]), 2
+        ),
         "uplift_canary_split": canary_split,
         "errors": errors,
         "cases": per_case,
@@ -239,7 +300,14 @@ def run(suite_path: Path, subset: int | None, report: Path | None, gate: bool) -
     out.write_text(json.dumps(benchmark, indent=2))
     print(
         f"\nwith_harness={rates['with_harness']}  without_harness={rates['without_harness']}  "
-        f"delta={delta}  canary_split={canary_split}  errors={errors}  -> {out}"
+        f"delta={delta}  canary_split={canary_split}  errors={errors}"
+    )
+    print(
+        f"COST  harness=${cost['with_harness']['cost_usd']} "
+        f"({cost['with_harness']['avg_tokens_per_query']} tok/q)  "
+        f"baseline=${cost['without_harness']['cost_usd']} "
+        f"({cost['without_harness']['avg_tokens_per_query']} tok/q)  "
+        f"-> baseline costs {benchmark['cost_ratio_baseline_over_harness']}x  -> {out}"
     )
 
     if gate:

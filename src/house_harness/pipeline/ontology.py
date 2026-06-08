@@ -93,11 +93,40 @@ def upsert(store: dict[str, Assertion], a: Assertion) -> dict[str, Assertion]:
     return store
 
 
+# Dissent is meaningful for single-valued FACTS (a metric/date/system with two
+# conflicting values is a real contradiction). It is just NOISE for free-text or
+# multi-valued DESCRIPTIVE/relational attributes — a person legitimately has several
+# role phrasings, owns several areas, has a solid + a dotted manager. Suppressing
+# dissent there (a winner is still chosen) keeps contradiction-detection sharp on the
+# numbers that matter. `new_attribute:` slugs are uncurated, so they never dissent.
+_DESCRIPTIVE_ATTRS = frozenset(
+    {
+        "role",
+        "location",
+        "owns",
+        "reports_to",
+        "dotted_reports_to",
+        "account.status",
+        "account.churn_reason",
+        "bug.status",
+        "bug.impact",
+        "hiring.status",
+        "confluence.status",
+        "ebitda_status",
+    }
+)
+
+
+def _dissent_meaningful(attribute: str) -> bool:
+    return attribute not in _DESCRIPTIVE_ATTRS and not attribute.startswith("new_attribute:")
+
+
 def _resolve_assertions(assertions: list[Assertion]) -> tuple[list[Assertion], list[Dissent]]:
     """Project a set of LIVE assertions to one current value per
-    (subject, attribute, scope) group, emitting a `Dissent` for any group whose
-    members disagree. Conflicts are surfaced, never collapsed. Shared by
-    `resolve` (whole store) and `query` (a filtered slice)."""
+    (subject, attribute, scope) group, emitting a `Dissent` for any group of
+    single-valued FACTS whose members disagree. Conflicts are surfaced, never
+    collapsed; descriptive/relational attributes pick a winner without noise-dissent.
+    Shared by `resolve` (whole store) and `query` (a filtered slice)."""
     groups: dict[tuple[str, str, str | None], list[Assertion]] = defaultdict(list)
     for a in assertions:
         if a.live:
@@ -107,7 +136,7 @@ def _resolve_assertions(assertions: list[Assertion]) -> tuple[list[Assertion], l
     for (subject, attribute, scope), members in groups.items():
         winner = max(members, key=_rank)
         winners.append(winner)
-        if len({m.value for m in members}) > 1:
+        if _dissent_meaningful(attribute) and len({m.value for m in members}) > 1:
             where = f"{subject} · {attribute}" + (f" @{scope}" if scope else "")
             point = (
                 f"{where}: sources disagree (current: {winner.value!r} from "
