@@ -115,9 +115,7 @@ def save_vocab(conn: sqlite3.Connection, domain: dict[str, str]) -> None:
     """Pin the corpus's induced DOMAIN vocab (replace-all). Empty is valid — it means
     'kernel only', e.g. induction was skipped/failed."""
     conn.execute("DELETE FROM vocab")
-    conn.executemany(
-        "INSERT INTO vocab (key, description) VALUES (?, ?)", list(domain.items())
-    )
+    conn.executemany("INSERT INTO vocab (key, description) VALUES (?, ?)", list(domain.items()))
     conn.commit()
 
 
