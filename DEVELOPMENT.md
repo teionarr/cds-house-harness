@@ -121,6 +121,43 @@ These have types/seams in the codebase and are intended next steps — see `SOLU
   prompt-cached corpus prefix and/or a smaller default subset. Deferred — coverage over
   speed/cost for now; the suite is broad on purpose.
 
+## Iteration speed — the 10× levers (future work)
+
+The dev loop is slower than it should be. Four things are slow; the meta-principle is
+the same for all of them: **stop paying the full cost on every iteration — cache,
+decouple, tier, and parallelize so each loop pays only for what changed.**
+
+1. **Deploy is slow because extraction runs on boot → ship a pre-built data artifact.**
+   *(biggest win)* Today: deploy → restart → re-extract ~6 min on the box (which OOM-loops
+   on a small machine — see why `fly.toml` declares 2GB). Fix: build the ontology **in CI
+   as an artifact** (or a one-off job), bake/upload the finished SQLite DB, and have the
+   server just *load* it. Boot drops from ~6 min + crash-risk to **seconds**, and
+   extraction stops competing with the web server for RAM. **~50× on the deploy loop.**
+
+2. **Evals + extraction re-run from scratch every time → record-replay the LLM calls.**
+   *(biggest $ + dev-loop win)* Today an eval is ~25 min / ~$6 and an extraction ~6 min /
+   ~$4, even when one line changed. Fix: **cache model responses keyed by (prompt-hash,
+   model)**. Unchanged cases replay instantly and free; only the diff hits the API. A
+   re-run after a small change goes from 25 min to ~30s and ~$0 — the single
+   highest-leverage change, since ~90% of iterations change one thing. **~20× + ~$0.**
+
+3. **Evals are sequential with a 55K-token baseline per case → parallelize + cache + tier.**
+   Parallelize the case loop (8–16 workers): 25 min → ~2–3 min. Prompt-cache the baseline
+   corpus prefix (same 55K every case → cache hits ~10× cheaper). **Tier it:** a ~5-case
+   smoke suite (~30s) on every push; the full 30-case + held-out only pre-merge/nightly.
+   Don't pay 25 min to check a typo. **~10× on the eval loop.**
+
+4. **Every change is a full PR through a multi-minute review gate → tier the gate + auto-merge.**
+   The AI review (3–8 min) is the long pole and it blocks merge. Run it **async/advisory**
+   (review after merge, or on-demand), not as a required check on every trivial change.
+   Use `gh pr merge --auto` so green PRs merge themselves. For solo/small-team: reserve the
+   PR ceremony for substantive code; allow direct-to-main (`[skip ci]`) for docs/config.
+   **~5× on the change loop.**
+
+**Paper-cuts to kill:** fix the editable install so `house-harness` runs without a
+`PYTHONPATH=src` workaround; and pin local Doppler to the real project so the key resolves
+first try.
+
 ## Conventions
 
 - **Typed boundaries.** `schema.py` is the only coupling between ingest / pipeline /
