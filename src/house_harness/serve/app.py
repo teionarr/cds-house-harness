@@ -100,19 +100,27 @@ _STATE: tuple[HouseHarness | None, dict[str, Assertion]] | None = None
 
 def _serving_state() -> tuple[HouseHarness | None, dict[str, Assertion]]:
     """Load (harness, assertion store) from SQLite once and cache for the process.
-    `reset_state()` clears it after a re-ingest."""
+    Capture the global into a LOCAL before returning: `reset_state()` can fire from the
+    background warm thread (networked serving), so reading `_STATE` twice could return
+    the value the guard just rejected. Read once."""
     global _STATE
-    if _STATE is None:
+    state = _STATE
+    if state is None:
         from house_harness.pipeline.run import load_serving_state
 
-        _STATE = load_serving_state()
-    return _STATE
+        state = load_serving_state()
+        _STATE = state
+    return state
 
 
 def reset_state() -> None:
-    """Drop the cached ontology so the next answer reloads it (after a re-ingest)."""
+    """Swap the cached ontology to the freshly re-ingested one. ATOMIC: load first, then
+    rebind `_STATE` in one assignment, so a concurrent reader sees the old state or the
+    new one — never `None` (no TOCTOU window during a background re-ingest)."""
     global _STATE
-    _STATE = None
+    from house_harness.pipeline.run import load_serving_state
+
+    _STATE = load_serving_state()
 
 
 # TODO: wire MCP tools (ask_company, get_entity, get_harness, get_harness_health)
