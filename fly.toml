@@ -18,7 +18,10 @@ primary_region = "iad"
 # Serve + ingest-on-boot, which ingests ONLY changed files (hash manifest) — a no-op
 # in the Phase-1 mock skeleton, the real corpus load once live.
 [processes]
-  app = "serve --ingest-on-boot data/"
+  # The primary agent surface is the MCP server over streamable-http: reachable at
+  # https://<app>.fly.dev/mcp (add with `claude mcp add --transport http`). The same
+  # app also serves /health (open) and /ask (token-gated). Ingest changed files on boot.
+  app = "mcp --transport streamable-http --ingest-on-boot data/"
 
 [[mounts]]
   source = "hh_data"

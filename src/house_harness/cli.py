@@ -51,12 +51,23 @@ def serve(
 @app.command()
 def mcp(
     transport: str = typer.Option("stdio", help="MCP transport: stdio | sse | streamable-http."),
+    corpus: Path | None = typer.Argument(None, help="Corpus dir to ingest on boot."),
+    ingest_on_boot: bool = typer.Option(
+        False, "--ingest-on-boot", help="Ingest the corpus before serving (hosted mode)."
+    ),
+    port: int | None = typer.Option(None, help="Port for http/sse transports (default APP_PORT)."),
 ) -> None:
     """Start the MCP server — the primary agent-native surface (ask_company,
-    get_harness, get_harness_health, get_entity). An agent spawns it over stdio."""
+    get_harness, get_harness_health, get_entity). `stdio` spawns locally; add
+    `--transport streamable-http` to host it at a URL an agent adds with one command."""
     from house_harness.serve.mcp import run as run_mcp
 
-    run_mcp(transport=transport)
+    run_mcp(
+        transport=transport,
+        ingest_on_boot=ingest_on_boot,
+        corpus=str(corpus) if corpus else None,
+        port=port,
+    )
 
 
 if __name__ == "__main__":

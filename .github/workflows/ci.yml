@@ -46,10 +46,10 @@ jobs:
       - name: Container comes up healthy (the deploy gate)
         run: |
           docker run -d --name hh -e HOUSE_HARNESS_SERVE_MODE=mock -e APP_PORT=8080 \
-            -p 8080:8080 house-harness:ci serve
+            -p 8080:8080 house-harness:ci mcp --transport streamable-http
           ok=0
           for _ in $(seq 1 30); do
-            if curl -fsS localhost:8080/health | grep -q '"status": "ok"'; then ok=1; break; fi
+            if curl -fsS localhost:8080/health | grep -qE '"status":[[:space:]]*"ok"'; then ok=1; break; fi
             sleep 2
           done
           docker logs hh || true
@@ -77,7 +77,7 @@ jobs:
       - name: Verify live /health
         run: |
           for _ in $(seq 1 30); do
-            if curl -fsS https://house-harness.fly.dev/health | grep -q '"status": "ok"'; then exit 0; fi
+            if curl -fsS https://house-harness.fly.dev/health | grep -qE '"status":[[:space:]]*"ok"'; then exit 0; fi
             sleep 3
           done
           echo "live /health did not go green" && exit 1
