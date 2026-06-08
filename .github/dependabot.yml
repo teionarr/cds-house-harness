@@ -13,8 +13,13 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
-  # The runtime base image.
+  # The runtime base image. Ignore MAJOR Python bumps — the interpreter version is a
+  # deliberate, coordinated change (Dockerfile + pyproject + CI together), not an
+  # unreviewed auto-merge (a major jump silently broke test/prod parity once).
   - package-ecosystem: docker
     directory: "/"
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major"]
