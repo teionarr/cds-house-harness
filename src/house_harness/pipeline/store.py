@@ -74,6 +74,19 @@ def load_assertions(conn: sqlite3.Connection) -> dict[str, Assertion]:
     return {a.id: a for a in (Assertion.model_validate_json(row[0]) for row in cur.fetchall())}
 
 
+def prune_assertions(conn: sqlite3.Connection, keep_ids: set[str]) -> int:
+    """Delete assertion rows whose id is NOT in keep_ids, and return how many.
+
+    The wholesale rebuild re-extracts the COMPLETE ontology of the current corpus,
+    so `keep_ids` is authoritative: anything else is an orphan from a RETRACTED
+    source (a file pulled from the corpus). Without this, INSERT-OR-REPLACE leaves a
+    removed source's assertions live forever — a silent moving-target hole."""
+    stale = [row[0] for row in conn.execute("SELECT id FROM assertions") if row[0] not in keep_ids]
+    conn.executemany("DELETE FROM assertions WHERE id = ?", [(i,) for i in stale])
+    conn.commit()
+    return len(stale)
+
+
 # ── harness ─────────────────────────────────────────────────────────────────--
 
 
@@ -103,8 +116,22 @@ def save_manifest_entry(conn: sqlite3.Connection, path: str, content_hash: str) 
     conn.commit()
 
 
+def drop_manifest_entries(conn: sqlite3.Connection, paths: Iterable[str]) -> None:
+    """Forget manifest rows for files that are gone — so the ledger tracks the corpus
+    as it actually is and a re-added file is re-ingested rather than wrongly skipped."""
+    conn.executemany("DELETE FROM manifest WHERE path = ?", [(p,) for p in paths])
+    conn.commit()
+
+
 def changed_files(conn: sqlite3.Connection, current: dict[str, str]) -> list[str]:
     """Given {path -> content_hash} for the corpus on disk, return the paths whose
     hash is new or changed vs the manifest — the only files a boot needs to ingest."""
     prior = load_manifest(conn)
     return [p for p, h in current.items() if prior.get(p) != h]
+
+
+def removed_files(conn: sqlite3.Connection, current: dict[str, str]) -> list[str]:
+    """Manifest paths no longer present on disk — a RETRACTED source. A deletion is a
+    corpus change too: it must trigger a rebuild (so the source's facts stop being
+    served) and prune the manifest, not just edits/additions via `changed_files`."""
+    return [p for p in load_manifest(conn) if p not in current]

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from house_harness.pipeline.health import assess_harness
 from house_harness.schema import (
+    Assertion,
     CompanyGraph,
     Dissent,
     GapKind,
@@ -15,6 +16,7 @@ from house_harness.schema import (
     PlaybookStep,
     RelationKind,
     SourceSpan,
+    SourceTier,
     Target,
 )
 
@@ -128,3 +130,38 @@ def test_summary_format():
     health = assess_harness(_full_harness(), [])
     assert "complete" in health.summary
     assert "gaps" in health.summary
+
+
+def _metric(attr: str, value: str, recorded_at: str | None, scope: str | None = None) -> Assertion:
+    return Assertion(
+        id=f"{attr}-{recorded_at}-{scope}",
+        subject="helixpay",
+        attribute=attr,
+        value=value,
+        scope=scope,
+        recorded_at=recorded_at,
+        source=SourceSpan(artifact_id="a1", start=0, end=5),
+        reliability=SourceTier.official,
+    )
+
+
+def test_stale_metric_flagged_by_transaction_time():
+    # nps last RECORDED 2025-01; another metric records the 2026-04 snapshot horizon.
+    store = {
+        a.id: a
+        for a in [
+            _metric("nps", "47", "2025-01-15"),
+            _metric("revenue.quarter_actual", "16M", "2026-04-20"),
+        ]
+    }
+    health = assess_harness(_full_harness(), [], store)
+    stale = [g for g in health.gaps if g.kind == GapKind.stale]
+    assert len(stale) == 1
+    assert "nps" in stale[0].where  # the cold metric, not the fresh one
+
+
+def test_stale_is_noop_without_recorded_at():
+    # Pre-bitemporal store (no recorded_at) -> staleness stays silent, as before.
+    store = {a.id: a for a in [_metric("nps", "47", None)]}
+    health = assess_harness(_full_harness(), [], store)
+    assert not any(g.kind == GapKind.stale for g in health.gaps)

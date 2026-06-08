@@ -203,7 +203,8 @@ def _map_raw_assertion(
         attribute=ra.attribute,
         value=ra.value,
         scope=ra.scope,
-        as_of=ra.as_of or doc_as_of,
+        as_of=ra.as_of or doc_as_of,  # valid time: stated validity, else the doc date
+        recorded_at=doc_as_of,  # transaction time: when this was written/ingested
         source=SourceSpan(artifact_id=artifact_id, start=start, end=end),
         reliability=tier,
         confidence=Confidence.high if tier >= SourceTier.official else Confidence.medium,
@@ -347,6 +348,7 @@ def _extract_one(art: Artifact) -> tuple[list[Assertion], list[GraphEdge], list[
                     attribute=rel.value,
                     value=dst,
                     as_of=doc_as_of,
+                    recorded_at=doc_as_of,
                     source=SourceSpan(artifact_id=art.id, start=dstart, end=dend),
                     reliability=tier,
                     confidence=Confidence.high

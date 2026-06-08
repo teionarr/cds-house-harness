@@ -325,6 +325,15 @@ class Assertion(BaseModel):
     (`scope` distinguishes "both true" from "conflict": NPS@SEA-enterprise=62 vs
     NPS@aggregate=47), and attribution (`source` on every one). `id` is stable
     (hash of subject+attribute+scope+source) so re-ingestion upserts, not duplicates.
+
+    BITEMPORAL: two independent time axes, never conflated.
+    - `as_of` = VALID time: the date the fact was true in the world (the Confluence
+      GA slipped *to* Sept 30). Drives supersession — the fresher validity wins.
+    - `recorded_at` = TRANSACTION time: the date this was written down / ingested
+      (the doc's own date). Drives staleness — "our newest *record* of NPS is 9
+      months behind the corpus snapshot" is a transaction-time question, not a
+      validity one. Separating them is what lets a freshly-recorded restatement of
+      an old fact read differently from a fact nobody has touched in a year.
     """
 
     id: str
@@ -332,7 +341,8 @@ class Assertion(BaseModel):
     attribute: str  # e.g. "confluence_launch_date", "nps"
     value: str
     scope: str | None = None  # qualifier; None = global. Same scope + differ = conflict
-    as_of: str | None = None
+    as_of: str | None = None  # VALID time — when the fact was true (drives supersession)
+    recorded_at: str | None = None  # TRANSACTION time — when written/ingested (drives staleness)
     source: SourceSpan
     reliability: SourceTier = SourceTier.official
     confidence: Confidence = Confidence.medium

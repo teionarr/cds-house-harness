@@ -73,3 +73,22 @@ def test_manifest_detects_changed_files():
     current = {"data/a.md": "hash1", "data/b.md": "CHANGED", "data/c.md": "new"}
     changed = store.changed_files(conn, current)
     assert set(changed) == {"data/b.md", "data/c.md"}  # unchanged a.md is skipped
+
+
+def test_removed_files_detects_retraction():
+    conn = _conn()
+    store.save_manifest_entry(conn, "data/a.md", "h1")
+    store.save_manifest_entry(conn, "data/b.md", "h2")
+    current = {"data/a.md": "h1"}  # b.md pulled from the corpus
+    assert store.removed_files(conn, current) == ["data/b.md"]
+    store.drop_manifest_entries(conn, ["data/b.md"])
+    assert store.removed_files(conn, current) == []  # ledger forgot it
+
+
+def test_prune_assertions_drops_retracted_source():
+    conn = _conn()
+    # a1 stays in the rebuilt set; a2 came from a now-retracted file.
+    store.save_assertions(conn, [_assertion(id_="a1"), _assertion(id_="a2", value="62")])
+    pruned = store.prune_assertions(conn, keep_ids={"a1"})
+    assert pruned == 1
+    assert set(store.load_assertions(conn)) == {"a1"}

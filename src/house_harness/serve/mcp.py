@@ -59,7 +59,7 @@ def get_harness_health() -> dict:
     if harness is None:
         return {"error": "ontology not built — run `house-harness run data/`"}
     _current, dissents = ontology.resolve(store)
-    return health.assess_harness(harness, dissents).model_dump(mode="json")
+    return health.assess_harness(harness, dissents, store).model_dump(mode="json")
 
 
 @mcp.tool()

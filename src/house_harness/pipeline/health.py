@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 
 from house_harness.schema import (
+    Assertion,
     Dissent,
     GapKind,
     HarnessGap,
@@ -70,8 +71,60 @@ ACTIONS: dict[GapKind, str] = {
 # Expected harness sections — emptiness here is a missing_section gap.
 EXPECTED_SECTIONS = ("charter", "targets", "guardrails", "playbooks")
 
+# Tracked metrics whose record going cold is a real staleness signal (vs descriptive
+# attributes, where an old value is just the last word, not a stale one).
+_TRACKED_METRIC = re.compile(r"\b(nps|revenue|ebitda|runway|burn|arr|churn|csat|retention|margin)")
+_STALE_THRESHOLD_MONTHS = 6  # a tracked metric whose newest RECORD lags the snapshot by this
 
-def assess_harness(harness: HouseHarness, dissent: list[Dissent]) -> HarnessHealth:
+
+def _ym(iso_date: str) -> int:
+    """ISO date -> absolute month index (year*12+month) for cheap lag arithmetic.
+    Tolerates a year-only date (treats it as January)."""
+    year = int(iso_date[:4])
+    month = int(iso_date[5:7]) if len(iso_date) >= 7 and iso_date[5:7].isdigit() else 1
+    return year * 12 + month
+
+
+def _stale_gaps(assertions: dict[str, Assertion], harness: HouseHarness) -> list[HarnessGap]:
+    """Transaction-time staleness: a tracked metric whose freshest RECORD (recorded_at,
+    not validity) lags the corpus snapshot horizon by > threshold. No-op until
+    recorded_at is populated (so it stays silent on a pre-bitemporal store)."""
+    dated = [
+        a
+        for a in assertions.values()
+        if a.live and a.recorded_at and _TRACKED_METRIC.search(a.attribute)
+    ]
+    if not dated:
+        return []
+    horizon = max(_ym(a.recorded_at) for a in dated)  # type: ignore[arg-type]
+    freshest: dict[tuple[str, str, str | None], Assertion] = {}
+    for a in dated:
+        key = (a.subject, a.attribute, a.scope)
+        if key not in freshest or a.recorded_at > freshest[key].recorded_at:  # type: ignore[operator]
+            freshest[key] = a
+    gaps: list[HarnessGap] = []
+    for a in freshest.values():
+        lag = horizon - _ym(a.recorded_at)  # type: ignore[arg-type]
+        if lag >= _STALE_THRESHOLD_MONTHS:
+            where = f"{a.subject} · {a.attribute}" + (f" @{a.scope}" if a.scope else "")
+            gaps.append(
+                HarnessGap(
+                    kind=GapKind.stale,
+                    where=where,
+                    detail=f"newest record is {a.recorded_at} — {lag} months behind the snapshot.",
+                    severity=3,
+                    suggested_action=ACTIONS[GapKind.stale].format(where=where),
+                    owner=_owner_for(where, harness),
+                )
+            )
+    return sorted(gaps, key=lambda g: g.detail, reverse=True)[:5]
+
+
+def assess_harness(
+    harness: HouseHarness,
+    dissent: list[Dissent],
+    assertions: dict[str, Assertion] | None = None,
+) -> HarnessHealth:
     """Deterministic checks over the harness + signals -> prioritized gaps.
 
     Checks (TODO: implement each as a rule):
@@ -85,9 +138,9 @@ def assess_harness(harness: HouseHarness, dissent: list[Dissent]) -> HarnessHeal
     severity by kind (missing core section > unowned guardrail > stale > orphan).
     `completeness` = populated EXPECTED_SECTIONS / total.
 
-    `stale` and `coverage_gap` are kept intentionally minimal: stale is a no-op
-    (no reliable snapshot date to compare against without fabricating one), and
-    coverage_gap only fires on the trivially-derivable zero-targets case.
+    `stale` fires when a tracked metric's freshest RECORD (transaction time) lags the
+    corpus snapshot horizon — enabled by `recorded_at`; a no-op until it's populated.
+    `coverage_gap` is kept minimal: only the trivially-derivable zero-targets case.
     """
 
     def _populated(section: str) -> bool:
@@ -170,7 +223,9 @@ def assess_harness(harness: HouseHarness, dissent: list[Dissent]) -> HarnessHeal
                     )
                 )
 
-    # stale: no-op — no snapshot date to compare against without fabricating one.
+    # 6. stale: a tracked metric whose newest RECORD lags the snapshot (transaction time).
+    if assertions:
+        gaps.extend(_stale_gaps(assertions, harness))
 
     populated = sum(1 for s in EXPECTED_SECTIONS if _populated(s))
     completeness = populated / len(EXPECTED_SECTIONS)

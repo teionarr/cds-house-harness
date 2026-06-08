@@ -58,14 +58,21 @@ def run_pipeline(corpus_dir: str = "data", out_dir: str = "out") -> dict:
 
     conn = _store.connect()
     _store.save_assertions(conn, assertions.values())
+    # Wholesale rebuild = `assertions` is the complete current ontology, so reconcile
+    # the store to it: drop assertions + manifest rows from any RETRACTED source.
+    pruned = _store.prune_assertions(conn, set(assertions))
+    current_hashes = {p: _hash(p) for p in paths}
+    _store.drop_manifest_entries(conn, _store.removed_files(conn, current_hashes))
+    for p, h in current_hashes.items():
+        _store.save_manifest_entry(conn, p, h)
     _store.save_harness(conn, harness)
-    for p in paths:
-        _store.save_manifest_entry(conn, p, _hash(p))
     conn.close()
+    if pruned:
+        logger.info("pruned %d assertions from retracted sources", pruned)
 
     # The harness mirror: surface conflicts/blind-spots IN the artifact, routed to owners.
     _current, dissents = ontology.resolve(assertions)
-    hh = assess_harness(harness, dissents)
+    hh = assess_harness(harness, dissents, assertions)
 
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -95,14 +102,17 @@ def ingest_on_boot(corpus_dir: str = "data") -> bool:
     have_data = bool(_store.load_harness(conn))
     current = {p: _hash(p) for p in _corpus_files(corpus_dir)}
     changed = _store.changed_files(conn, current)
+    removed = _store.removed_files(conn, current)
     conn.close()
-    if have_data and not changed:
+    if have_data and not changed and not removed:
         logger.info(
             "ingest-on-boot: no changes, %d files unchanged — skipping rebuild", len(current)
         )
         return False
     logger.info(
-        "ingest-on-boot: %d changed/new files — rebuilding harness", len(changed) or len(current)
+        "ingest-on-boot: %d changed/new, %d removed files — rebuilding harness",
+        len(changed),
+        len(removed),
     )
     run_pipeline(corpus_dir)
     return True
