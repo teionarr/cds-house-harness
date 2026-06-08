@@ -22,12 +22,15 @@ and the eval can assert `answer_path == ontology` + every claim has an
 from __future__ import annotations
 
 import logging
+import os
 import re
+from functools import lru_cache
+from pathlib import Path
 
 from pydantic import BaseModel, Field
 
 from house_harness.config.structured import llm_json
-from house_harness.pipeline import aliases, attributes, ontology
+from house_harness.pipeline import aliases, attributes, names, ontology
 from house_harness.schema import (
     AnswerPath,
     Assertion,
@@ -86,6 +89,22 @@ _COMPARISON = re.compile(
     r"\b(same|related|different|distinct|vs\.?|versus|confus|mix(ed)? up)\b", re.IGNORECASE
 )
 
+# Contradiction questions ("do the sources agree? which is authoritative?") -> the
+# ontology answer (it already resolved + surfaces dissent), NEVER the raw fallback.
+_CONTRADICTION = re.compile(
+    r"sources?\s+agree|which\s+(is|source|one).{0,30}(authoritative|right|correct|trust)|"
+    r"conflict|discrepan|disagree|reconcile|reported\s+(differently|three|multiple|inconsistent)",
+    re.IGNORECASE,
+)
+
+# Stance/opinion questions ("what is X's position/view on Y") -> cross-source
+# synthesis (a person's view is scattered across all-hands/board/chat), not a slice.
+_STANCE = re.compile(
+    r"\b(position|stance|view|opinion|think|believe|feel|wants?|prefers?|said about|take)\b"
+    r".{0,25}\b(on|about|regarding|external|reporting)\b",
+    re.IGNORECASE,
+)
+
 # Segment/region scope isolation: if the question names one, pin it so the answer
 # surfaces THAT segment's number instead of dumping every scope. Most specific first;
 # word-boundary patterns so "SEA's" and "Brazilian" still match.
@@ -106,6 +125,98 @@ def _segment_scope(query: str) -> str | None:
         if re.search(pattern, q):
             return scope
     return None
+
+
+# ── deterministic hierarchy traversal (multi-hop is graph-walked, not LLM-guessed) ──
+
+
+@lru_cache(maxsize=1)
+def _registry() -> names.Registry:
+    """The canonical name registry, built once from the corpus roster (the org chart)
+    so query-time hierarchy dedups 'sofia'/'Sofia Almeida' to one entity."""
+    corpus_dir = os.environ.get("HOUSE_HARNESS_CORPUS_DIR", "data")
+    root = Path(corpus_dir)
+    text = (
+        " ".join(p.read_text() for p in root.rglob("*org-chart*") if p.suffix == ".md")
+        if root.exists()
+        else ""
+    )
+    return names.build_registry(text)
+
+
+_HIER = ("reports_to", "dotted_reports_to")
+
+
+def _canon_person(name: str) -> str:
+    """Canonical full name from a mention, dropping the role suffix extraction adds
+    ('Maria Silva (Head of Sales, Brasil)' -> 'Maria Silva')."""
+    base = re.split(r"[(,]", name)[0].strip()
+    return _registry().canonicalize(base)
+
+
+def _is_roster(a: Assertion) -> bool:
+    """The TEXT org chart is the authoritative roster for reporting lines (the vision
+    image OCR and stray interview mentions are not). Prefer it for hierarchy."""
+    aid = a.source.artifact_id
+    return "org-chart" in aid and "jpeg" not in aid and "image" not in aid
+
+
+def _manager_of(store: dict[str, Assertion], person: str) -> tuple[str, Assertion] | None:
+    """The manager of one canonical person — the single source of truth for one hop.
+    The authoritative text org chart wins; only if it is silent do we fall back to
+    other sources by (tier, recency). Names are canonicalized, so 'sofia' == 'Sofia
+    Almeida' and the wrong/casing-variant edges don't fragment or mislead."""
+    target = _canon_person(person).lower()
+    edges = [
+        a
+        for a in store.values()
+        if a.live and a.attribute in _HIER and _canon_person(a.subject).lower() == target
+    ]
+    solid = [a for a in edges if a.attribute == "reports_to"] or edges
+    if not solid:
+        return None
+    roster = [a for a in solid if _is_roster(a)]
+    pool = roster or solid  # the roster is authoritative; otherwise best-sourced
+    win = max(pool, key=lambda x: (int(x.reliability), x.as_of or ""))
+    return _canon_person(win.value), win
+
+
+def _hierarchy_answer(
+    query: str, harness: HouseHarness, store: dict[str, Assertion]
+) -> TrustEnvelope | None:
+    """Walk the resolved org graph deterministically for forward/up questions
+    ('who does X report to', "X's manager", multi-hop 'who does X's manager report
+    to') — so a wrong edge can't be mislinked by the composer and each hop is sourced.
+    Reverse ('who reports to X') and non-hierarchy questions fall through (-> None)."""
+    q = query.lower()
+    if not re.search(r"\b(reports? to|manager|boss|report up)\b", q):
+        return None
+    if re.search(r"\bwho\s+(?:reports?|dotted)\b", q):  # reverse -> existing value-match path
+        return None
+    person = _registry().find(query)
+    if not person:
+        return None
+    hops = 2 if re.search(r"manager(?:'s|s')?\b.{0,25}\breport", q) else 1  # X's manager's manager
+    chain: list[Assertion] = []
+    cur = person
+    for _ in range(hops):
+        step = _manager_of(store, cur)
+        if step is None:
+            break
+        chain.append(step[1])
+        cur = step[0]
+    if not chain:
+        return None
+    claims = claims_from_assertions(chain)
+    return build_envelope(
+        answer=_compose_answer(query, claims, []),
+        claims=claims,
+        dissent=[],
+        coverage_gaps=[],
+        coverage=1.0,
+        harness=harness,
+        answer_path=AnswerPath.ontology,
+    )
 
 
 def _anti_alias_claims(query: str) -> list[Claim]:
@@ -303,7 +414,24 @@ def claims_from_assertions(assertions: list[Assertion]) -> list[Claim]:
     return claims
 
 
-def _compose_answer(query: str, claims: list[Claim], dissent: list[Dissent]) -> str:
+def _superseded_for(store: dict[str, Assertion], answered: list[Assertion]) -> str:
+    """The prior, superseded values behind the answered facts — same (subject,
+    attribute, scope) but `live=False` — so the composer can say 'current X; this
+    REPLACED the older Y'. The 'knowing it's the fresh one' half of staleness."""
+    heads = {(a.subject, a.attribute, a.scope) for a in answered}
+    lines = [
+        f"- {a.subject} · {a.attribute}"
+        + (f" @{a.scope}" if a.scope else "")
+        + f" = {a.value} (as_of {a.as_of}, from {a.source.artifact_id})"
+        for a in store.values()
+        if not a.live and (a.subject, a.attribute, a.scope) in heads
+    ]
+    return "\n".join(lines[:8]) or "(none)"
+
+
+def _compose_answer(
+    query: str, claims: list[Claim], dissent: list[Dissent], superseded: str = "(none)"
+) -> str:
     """Compose the natural-language answer STRICTLY from the resolved claims +
     dissent (the ontology slice) — never from raw text. The model narrates what the
     ontology already resolved; it does not introduce facts."""
@@ -316,11 +444,12 @@ def _compose_answer(query: str, claims: list[Claim], dissent: list[Dissent]) -> 
         "- Different scopes are BOTH TRUE, not a contradiction: present a segment value "
         "and an aggregate (e.g. NPS 62 for SEA-enterprise vs 47 aggregate) side by side "
         "with their scope, and do NOT call them a disagreement.\n"
-        "- When one value supersedes another (a fresher date/source), lead with the "
-        "CURRENT value and name the superseded prior one and the source that updated it.\n"
+        "- If a SUPERSEDED prior value is listed, lead with the CURRENT one and explicitly "
+        "note it is the fresh value that replaced the older one (name the stale source + date).\n"
         "- Only describe a genuine conflict when two sources give different values for the "
         "SAME scope; name the disagreeing sources.\n\n"
-        f"QUESTION: {query}\n\nRESOLVED FACTS:\n{facts}\n\nSAME-SCOPE CONFLICTS:\n{disagreements}",
+        f"QUESTION: {query}\n\nRESOLVED FACTS:\n{facts}\n\n"
+        f"SUPERSEDED PRIOR VALUES:\n{superseded}\n\nSAME-SCOPE CONFLICTS:\n{disagreements}",
         _Narrative,
     )
     return res.answer
@@ -336,7 +465,19 @@ def answer(query: str, harness: HouseHarness, store: dict[str, Assertion]) -> Tr
     # never broaden a current value into it. Let the fallback confirm the gap + abstain.
     if any(y > _corpus_horizon(store) for y in _query_years(query)):
         return _fallback(query, harness, store)
+    # Forward/up org questions are graph-WALKED deterministically (no LLM mislinking).
+    hier = _hierarchy_answer(query, harness, store)
+    if hier is not None:
+        return hier
+    # A person's STANCE/view is scattered across all-hands/board/chat -> cross-source
+    # synthesis over the corpus, not a thin ontology slice.
+    if _STANCE.search(query):
+        return _fallback(query, harness, store)
     res = resolve_question(query)
+    # A "do sources agree / which is authoritative" question MUST be answered from the
+    # ontology (which resolved the conflict + carries dissent), never the raw fallback.
+    if _CONTRADICTION.search(query) and res.attribute:
+        res.intent, res.in_namespace = "metric", True
     # The anti-alias ledger is owned ontology data: for "who is X" / "is X the same as
     # Y" surface the verified distinction (Maria Santos != Maria Silva) instead of
     # leaving over-merge to chance — the differentiator the raw baseline only stumbles into.
@@ -348,7 +489,7 @@ def answer(query: str, harness: HouseHarness, store: dict[str, Assertion]) -> Tr
         claims = anti + claims_from_assertions(assertions)
         if claims:
             return build_envelope(
-                answer=_compose_answer(query, claims, dissent),
+                answer=_compose_answer(query, claims, dissent, _superseded_for(store, assertions)),
                 claims=claims,
                 dissent=dissent,
                 coverage_gaps=[],

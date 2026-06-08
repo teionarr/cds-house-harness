@@ -33,7 +33,7 @@ import networkx as nx
 from pydantic import BaseModel, ConfigDict, Field
 
 from house_harness.config.structured import llm_json
-from house_harness.pipeline import aliases, attributes, ontology
+from house_harness.pipeline import aliases, attributes, names, ontology
 from house_harness.schema import (
     Artifact,
     Assertion,
@@ -102,12 +102,20 @@ _NON_PERSON = {
     ident.split(" (")[0].strip().lower() for ident, _why in aliases.NON_PERSON_IDENTITIES
 }
 
+# The canonical name registry (built from the org-chart roster at extract time, set
+# before the thread pool; read-only during extraction). Collapses 'sofia'/'Sofia
+# Almeida'/casing/transliteration to one entity so the ontology graph doesn't fragment.
+_REGISTRY: names.Registry = names._EMPTY
+
 
 def _canonicalize(subject: str) -> str:
-    """Map a surface form to its canonical entity via the verified alias ledger.
-    Only KNOWN aliases merge — anti-aliases never collapse (over-merge is silent
-    corruption), so unknown names pass through unchanged."""
-    return _ALIAS_TO_CANONICAL.get(subject.strip().lower(), subject.strip())
+    """Map a surface form to its canonical entity via (1) the verified alias ledger
+    (products/orgs) and (2) the org-chart name registry (people — unambiguous first
+    names + casing). Only KNOWN/unambiguous forms merge; anti-aliases never collapse."""
+    s = _ALIAS_TO_CANONICAL.get(subject.strip().lower(), subject.strip())
+    base = re.split(r"[(,]", s)[0].strip()  # drop role suffix before the name lookup
+    canon = _REGISTRY.canonicalize(base)
+    return canon if canon.lower() != base.lower() else s
 
 
 def _is_non_person(subject: str) -> bool:
@@ -400,6 +408,12 @@ def extract_harness(
     Returns (harness, assertion_store). The store is the ontology of-record (incl.
     superseded assertions, kept as history) that the query path reads."""
     artifacts = list(artifacts)
+    # Build the name registry from the org-chart roster BEFORE the pool (read-only in
+    # threads) so every extracted name canonicalizes to one entity.
+    global _REGISTRY
+    roster = " ".join(a.text for a in artifacts if "org-chart" in a.id and "image" not in a.id)
+    _REGISTRY = names.build_registry(roster)
+
     store: dict[str, Assertion] = {}
     edges: list[GraphEdge] = []
     guardrails: list[Guardrail] = []
