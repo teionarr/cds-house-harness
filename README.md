@@ -29,17 +29,21 @@ curl -s localhost:8080/ask \
   -d '{"q":"Who can approve a customer discount, and when does Confluence go GA?"}'
 ```
 
-Live instance: **<DEPLOY_URL>** (Fly.io; `fly.toml`). `/health` is open and echoes the
-serve mode; every other endpoint is bearer-token gated.
+Live instance: **https://house-harness.fly.dev** (Fly.io; `fly.toml`) — MCP at `/mcp`,
+plus `/health` (open) and `/ask`. Machines scale to zero, so the first call after idle
+wakes in a few seconds.
 
 ## Use it (the agent interface)
 
-MCP is the keystone surface — an agent spawns it over stdio and calls four tools,
-each returning structured data it can *act on*, not just read:
+MCP is the keystone surface, and **it's hosted** — add the live server to any MCP
+client (Claude Code, Claude Desktop, Cursor) with one command, no clone, no build:
 
 ```bash
-house-harness mcp        # stdio MCP server (FastMCP)
+claude mcp add --transport http house-harness https://house-harness.fly.dev/mcp
 ```
+
+Then just ask the agent about the company — it calls four tools, each returning
+structured data it can *act on*, not just read:
 
 | Tool | Returns |
 |---|---|
@@ -49,7 +53,9 @@ house-harness mcp        # stdio MCP server (FastMCP)
 | `get_entity(name)` | the resolved assertions about one entity, each with its source and as-of date |
 
 `ask_company` routes through the same single entrypoint as HTTP `/ask`, so the two
-surfaces can never diverge.
+surfaces can never diverge. The same host also serves `GET /health` (open) and
+`POST /ask` (bearer-gated) for non-MCP clients. (Locally, `house-harness mcp` runs
+the same server over stdio for an agent to spawn as a subprocess.)
 
 ## What's inside
 

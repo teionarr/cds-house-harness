@@ -20,18 +20,23 @@ git clone github.com/teionarr/cds-house-harness && cd cds-house-harness   # corp
 ```
 
 Needs Docker + `ANTHROPIC_API_KEY` (seeded into `.env` on first run; LangSmith tracing
-and Doppler optional). Serves on `:8080`. Then, via HTTP or MCP:
+and Doppler optional). Serves on `:8080` — `/mcp` (MCP), `/ask` (HTTP), `/health`.
+
+The MCP server is also **hosted**, so a reviewer can use it as a normal Claude MCP with
+one command — no clone, no build:
 
 ```bash
-curl -s localhost:8080/ask -H "Authorization: Bearer $HOUSE_HARNESS_API_TOKEN" \
-  -d '{"q":"Who can approve a customer discount, and when does Confluence go GA?"}'
+claude mcp add --transport http house-harness https://house-harness.fly.dev/mcp
+# ...then ask the agent. Tools: ask_company, get_harness, get_harness_health, get_entity.
 
-house-harness mcp     # stdio MCP server: ask_company, get_harness, get_harness_health, get_entity
+# Or hit the same engine over HTTP:
+curl -s https://house-harness.fly.dev/ask -H "Authorization: Bearer $HOUSE_HARNESS_API_TOKEN" \
+  -d '{"q":"Who can approve a customer discount, and when does Confluence go GA?"}'
 ```
 
-Live instance: **<DEPLOY_URL>** (Fly.io). `/health` is open and echoes the serve mode;
-everything else is bearer-gated. Cold machines scale to zero, so the first call wakes
-in a few seconds.
+Live instance: **https://house-harness.fly.dev** (Fly.io). `/health` is open and echoes
+the serve mode; `/ask` is bearer-gated. Machines scale to zero, so the first call after
+idle wakes in a few seconds.
 
 **Try the cross-cutting questions** (each spans documents that disagree):
 - *"When does Confluence launch?"* → **Sep 30**, with the public June date flagged as the superseded line.

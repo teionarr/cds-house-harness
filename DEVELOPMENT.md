@@ -65,6 +65,21 @@ make docker     # build the image
 make package    # zip the committed files for delivery
 ```
 
+## Serving surfaces
+
+One process, one port (`APP_PORT`, default 8080), three routes:
+
+- **`/mcp`** — the MCP server (FastMCP, streamable-http). `house-harness mcp` runs it
+  over **stdio** for a local agent to spawn; `house-harness mcp --transport
+  streamable-http` hosts it at a URL a client adds with `claude mcp add --transport
+  http <name> https://<host>/mcp`. This is what the Fly deploy runs.
+- **`/health`** — open deploy probe (`{status, mode}`).
+- **`/ask`** — token-gated REST fallback for non-MCP clients (`{"q": "..."}` → envelope).
+
+`/mcp` and `/ask` both route through `serve.app.answer`, so the surfaces never diverge.
+`house-harness serve` still runs the stdlib HTTP-only server (`/health` + `/ask`) for
+environments without the MCP deps.
+
 ## The acceptance gate (`make validate`)
 
 The post-build go/no-go, run against the live system on the real corpus. It writes

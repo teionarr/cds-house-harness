@@ -24,5 +24,5 @@ services:
       LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-}
     ports:
       - "${APP_PORT:-8080}:8080"
-    # Ingest-at-startup, then serve the agent interface. Re-running is safe.
-    command: ["uv", "run", "house-harness", "serve", "--ingest-on-boot", "data/"]
+    # Ingest-at-startup, then serve the MCP endpoint (/mcp) + /health + /ask. Re-running is safe.
+    command: ["uv", "run", "house-harness", "mcp", "--transport", "streamable-http", "--ingest-on-boot", "data/"]
